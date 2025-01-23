@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use wg_2024::network::NodeId;
+
+#[derive(Debug)]
+pub struct SimulationController {
+    id: NodeId,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl SimulationController {
+    fn new(id: NodeId) -> Self {
+        SimulationController { id }
+    }
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn run(&mut self) {
+        todo!()
     }
 }
