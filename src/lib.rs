@@ -1,21 +1,23 @@
 use std::collections::HashMap;
-
+use petgraph::stable_graph::StableGraph;
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
-use eframe::egui;
+use eframe::{egui, CreationContext};
+use egui_graphs::{DefaultEdgeShape, DefaultGraphView, DefaultNodeShape, Graph, LayoutRandom, LayoutStateRandom};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
 };
 
 pub struct MyApp {
-    name: String,
+    network: egui_graphs::Graph,
 }
 
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {
-            name: "Hello, eframe!".to_owned(),
+impl MyApp {
+    fn new(_: &CreationContext<'_>) -> Self {
+        let g = generate_graph();
+        MyApp {
+            network: Graph::from(&g),
         }
     }
 }
@@ -23,12 +25,23 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading(&self.name);
-            if ui.button("Click me!").clicked() {
-                self.name = "You clicked the button!".to_owned();
-            }
+            ui.add(&mut DefaultGraphView::new(&mut self.network));
         });
     }
+}
+
+fn generate_graph() -> StableGraph<(), ()> {
+    let mut g = StableGraph::new();
+
+    let a = g.add_node(());
+    let b = g.add_node(());
+    let c = g.add_node(());
+
+    g.add_edge(a, b, ());
+    g.add_edge(b, c, ());
+    g.add_edge(c, a, ());
+
+    g
 }
 
 #[derive(Debug)]
@@ -60,7 +73,7 @@ impl SimulationController {
         eframe::run_native(
             "Simulation Controller",
             options,
-            Box::new(|cc| Box::new(MyApp::default())),
+            Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
         )
         .expect("Failed to run simulation controller");
     }
