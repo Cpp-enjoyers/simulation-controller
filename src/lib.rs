@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use petgraph::stable_graph::StableGraph;
+use egui::{CentralPanel, SidePanel};
+use petgraph::stable_graph::{StableGraph, NodeIndex};
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui_graphs::{DefaultEdgeShape, DefaultGraphView, DefaultNodeShape, Graph, LayoutRandom, LayoutStateRandom};
+use egui_graphs::{DefaultGraphView, Graph, SettingsInteraction, SettingsStyle};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
@@ -11,6 +12,7 @@ use wg_2024::{
 
 pub struct MyApp {
     network: egui_graphs::Graph,
+    selected_node: Option<NodeIndex>,
 }
 
 impl MyApp {
@@ -18,15 +20,42 @@ impl MyApp {
         let g = generate_graph();
         MyApp {
             network: Graph::from(&g),
+            selected_node: Option::default(),
         }
     }
+
+    fn read_data(&mut self) {
+        if !self.network.selected_nodes().is_empty() {
+            let idx = self.network.selected_nodes().first().unwrap();
+            self.selected_node = Some(*idx);
+        }
+    }
+
+    fn render(&mut self, ctx: &egui::Context) {
+        SidePanel::right("Panel").show(ctx, |ui| {
+            ui.label("Selected node:");
+            if let Some(idx) = self.selected_node {
+                ui.label(format!("{:?}", idx));
+            }
+        });
+        CentralPanel::default().show(ctx, |ui| {
+            let graph_widget = &mut DefaultGraphView::new(&mut self.network)
+                .with_interactions(
+                    &SettingsInteraction::default()
+                    .with_node_selection_enabled(true)   
+                )
+                .with_styles(&SettingsStyle::default().with_labels_always(true));
+            ui.add(graph_widget);
+        });
+        
+    }
+
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(&mut DefaultGraphView::new(&mut self.network));
-        });
+        self.read_data();
+        self.render(ctx);
     }
 }
 
