@@ -41,6 +41,8 @@ impl MyApp {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 ui.label(format!("{:?}", idx));
+                let node_label = self.network.node(idx).unwrap().payload().label.clone();
+                ui.label(format!("Label: {}", node_label));
             }
         });
         CentralPanel::default().show(ctx, |ui| {
