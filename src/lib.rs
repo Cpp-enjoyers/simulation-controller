@@ -11,8 +11,7 @@ use egui_graphs::{
 use petgraph::{stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
 use std::collections::HashMap;
 use wg_2024::{
-    controller::{DroneCommand, DroneEvent},
-    network::NodeId,
+    config::Drone, controller::{DroneCommand, DroneEvent}, network::NodeId
 };
 
 #[derive(Clone)]
@@ -104,6 +103,7 @@ pub struct SimulationController {
     drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>)>,
     clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
     servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
+    drones: Vec<Drone>,
 }
 
 impl SimulationController {
@@ -112,12 +112,14 @@ impl SimulationController {
         drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>)>,
         clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
         servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
+        drones: Vec<Drone>,
     ) -> Self {
         SimulationController {
             id,
             drones_channels,
             clients_channels,
             servers_channels,
+            drones,
         }
     }
 
