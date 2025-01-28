@@ -5,8 +5,7 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{CentralPanel, SidePanel};
 use egui_graphs::{
-    DefaultGraphView, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
-    SettingsStyle,
+    DefaultGraphView, Edge, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle
 };
 use petgraph::{stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
 use std::collections::HashMap;
@@ -14,7 +13,7 @@ use wg_2024::{
     config::Drone, controller::{DroneCommand, DroneEvent}, network::NodeId
 };
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct GraphNode {
     pub label: String,
 }
@@ -79,18 +78,16 @@ impl eframe::App for MyApp {
 
 fn generate_graph(v: Vec<Drone>) -> StableGraph<GraphNode, (), Undirected> {
     let mut g = StableUnGraph::default();
+    let mut h: HashMap<u8, NodeIndex> = HashMap::new();
 
-    for _ in 0..v.len() {
-        g.add_node(GraphNode {
-            label: "Drone".to_string(),
-        });
+    for d in &v {
+        let node_index = g.add_node(GraphNode { label: format!("Drone: {}", d.id) });
+        h.insert(d.id, node_index);
     }
 
-    for (idx, d) in v.iter().enumerate() {
-        let current_node = g.node_indices().nth(idx).unwrap();
+    for d in &v {
         for n in &d.connected_node_ids {
-            let neighbor_node = g.node_indices().nth(*n as usize).unwrap();
-            g.add_edge(current_node, neighbor_node, ());
+            g.add_edge(h[&d.id], h[n], ());
         }
     }
 
