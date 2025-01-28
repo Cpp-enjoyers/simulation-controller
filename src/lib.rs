@@ -1,10 +1,15 @@
-use std::collections::HashMap;
-use egui::{CentralPanel, SidePanel};
-use petgraph::stable_graph::{StableGraph, NodeIndex};
+#![warn(clippy::pedantic)]
+
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui_graphs::{DefaultGraphView, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle};
+use egui::{CentralPanel, SidePanel};
+use egui_graphs::{
+    DefaultGraphView, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
+    SettingsStyle,
+};
+use petgraph::{stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
+use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
@@ -16,7 +21,7 @@ pub struct GraphNode {
 }
 
 pub struct MyApp {
-    network: Graph<GraphNode, ()>,
+    network: Graph<GraphNode, (), Undirected>,
     selected_node: Option<NodeIndex>,
 }
 
@@ -46,17 +51,24 @@ impl MyApp {
             }
         });
         CentralPanel::default().show(ctx, |ui| {
-            let graph_widget: &mut GraphView<'_, GraphNode, (), petgraph::Directed, u32, egui_graphs::DefaultNodeShape, egui_graphs::DefaultEdgeShape, LayoutStateRandom, LayoutRandom>  = &mut GraphView::new(&mut self.network)
+            let graph_widget: &mut GraphView<
+                '_,
+                GraphNode,
+                (),
+                petgraph::Undirected,
+                u32,
+                egui_graphs::DefaultNodeShape,
+                egui_graphs::DefaultEdgeShape,
+                LayoutStateRandom,
+                LayoutRandom,
+            > = &mut GraphView::new(&mut self.network)
                 .with_interactions(
-                    &SettingsInteraction::default()
-                    .with_node_selection_enabled(true)   
+                    &SettingsInteraction::default().with_node_selection_enabled(true),
                 )
                 .with_styles(&SettingsStyle::default().with_labels_always(true));
             ui.add(graph_widget);
         });
-        
     }
-
 }
 
 impl eframe::App for MyApp {
@@ -66,12 +78,18 @@ impl eframe::App for MyApp {
     }
 }
 
-fn generate_graph() -> StableGraph<GraphNode, ()> {
-    let mut g = StableGraph::new();
+fn generate_graph() -> StableGraph<GraphNode, (), Undirected> {
+    let mut g = StableUnGraph::default();
 
-    let a = g.add_node(GraphNode { label: "Client".to_string() });
-    let b = g.add_node(GraphNode { label: "Server".to_string() });
-    let c = g.add_node(GraphNode { label: "Drone".to_string() });
+    let a = g.add_node(GraphNode {
+        label: "Client".to_string(),
+    });
+    let b = g.add_node(GraphNode {
+        label: "Server".to_string(),
+    });
+    let c = g.add_node(GraphNode {
+        label: "Drone".to_string(),
+    });
 
     g.add_edge(a, b, ());
     g.add_edge(b, c, ());
@@ -104,7 +122,10 @@ impl SimulationController {
     }
 
     pub fn run(&mut self) {
-        println!("Running simulation controller with drones: {}", self.drones_channels.len());
+        println!(
+            "Running simulation controller with drones: {}",
+            self.drones_channels.len()
+        );
         let options = eframe::NativeOptions::default();
         eframe::run_native(
             "Simulation Controller",
