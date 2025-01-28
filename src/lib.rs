@@ -79,6 +79,7 @@ impl eframe::App for MyApp {
 fn generate_graph(v: Vec<Drone>) -> StableGraph<GraphNode, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
+    println!("drones: {:?}", v);
 
     for d in &v {
         let node_index = g.add_node(GraphNode { label: format!("Drone: {}", d.id) });
