@@ -25,8 +25,8 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    fn new(_: &CreationContext<'_>) -> Self {
-        let g = generate_graph();
+    fn new(_: &CreationContext<'_>, drones: Vec<Drone>) -> Self {
+        let g = generate_graph(drones);
         MyApp {
             network: Graph::from(&g),
             selected_node: Option::default(),
@@ -77,22 +77,36 @@ impl eframe::App for MyApp {
     }
 }
 
-fn generate_graph() -> StableGraph<GraphNode, (), Undirected> {
+fn generate_graph(v: Vec<Drone>) -> StableGraph<GraphNode, (), Undirected> {
     let mut g = StableUnGraph::default();
 
-    let a = g.add_node(GraphNode {
-        label: "Client".to_string(),
-    });
-    let b = g.add_node(GraphNode {
-        label: "Server".to_string(),
-    });
-    let c = g.add_node(GraphNode {
-        label: "Drone".to_string(),
-    });
+    for _ in 0..v.len() {
+        g.add_node(GraphNode {
+            label: "Drone".to_string(),
+        });
+    }
 
-    g.add_edge(a, b, ());
-    g.add_edge(b, c, ());
-    g.add_edge(c, a, ());
+    for (idx, d) in v.iter().enumerate() {
+        let current_node = g.node_indices().nth(idx).unwrap();
+        for n in &d.connected_node_ids {
+            let neighbor_node = g.node_indices().nth(*n as usize).unwrap();
+            g.add_edge(current_node, neighbor_node, ());
+        }
+    }
+
+    // let a = g.add_node(GraphNode {
+    //     label: "Client".to_string(),
+    // });
+    // let b = g.add_node(GraphNode {
+    //     label: "Server".to_string(),
+    // });
+    // let c = g.add_node(GraphNode {
+    //     label: "Drone".to_string(),
+    // });
+
+    // g.add_edge(a, b, ());
+    // g.add_edge(b, c, ());
+    // g.add_edge(c, a, ());
 
     g
 }
@@ -132,7 +146,7 @@ impl SimulationController {
         eframe::run_native(
             "Simulation Controller",
             options,
-            Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
+            Box::new(|cc| Ok(Box::new(MyApp::new(cc, self.drones.clone())))),
         )
         .expect("Failed to run simulation controller");
     }
