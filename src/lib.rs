@@ -4,14 +4,19 @@ use petgraph::stable_graph::{StableGraph, NodeIndex};
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui_graphs::{DefaultGraphView, Graph, SettingsInteraction, SettingsStyle};
+use egui_graphs::{DefaultGraphView, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
 };
 
+#[derive(Clone)]
+pub struct GraphNode {
+    pub label: String,
+}
+
 pub struct MyApp {
-    network: egui_graphs::Graph,
+    network: Graph<GraphNode, ()>,
     selected_node: Option<NodeIndex>,
 }
 
@@ -39,7 +44,7 @@ impl MyApp {
             }
         });
         CentralPanel::default().show(ctx, |ui| {
-            let graph_widget = &mut DefaultGraphView::new(&mut self.network)
+            let graph_widget: &mut GraphView<'_, GraphNode, (), petgraph::Directed, u32, egui_graphs::DefaultNodeShape, egui_graphs::DefaultEdgeShape, LayoutStateRandom, LayoutRandom>  = &mut GraphView::new(&mut self.network)
                 .with_interactions(
                     &SettingsInteraction::default()
                     .with_node_selection_enabled(true)   
@@ -59,12 +64,12 @@ impl eframe::App for MyApp {
     }
 }
 
-fn generate_graph() -> StableGraph<(), ()> {
+fn generate_graph() -> StableGraph<GraphNode, ()> {
     let mut g = StableGraph::new();
 
-    let a = g.add_node(());
-    let b = g.add_node(());
-    let c = g.add_node(());
+    let a = g.add_node(GraphNode { label: "Client".to_string() });
+    let b = g.add_node(GraphNode { label: "Server".to_string() });
+    let c = g.add_node(GraphNode { label: "Drone".to_string() });
 
     g.add_edge(a, b, ());
     g.add_edge(b, c, ());
