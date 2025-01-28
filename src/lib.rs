@@ -12,15 +12,16 @@ use petgraph::{
     stable_graph::{NodeIndex, StableGraph, StableUnGraph},
     Undirected,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
 };
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Hash, Eq, PartialEq)]
 pub struct GraphNode {
+    pub id: u8,
     pub label: String,
 }
 
@@ -90,59 +91,59 @@ impl eframe::App for MyApp {
 fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableGraph<GraphNode, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
+    let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
     for d in &v {
-        let node_index = g.add_node(GraphNode {
-            label: format!("Drone: {}", d.id),
+        let idx = g.add_node(GraphNode {
+            id: d.id,
+            label: format!("Drone {}", d.id),
         });
-        h.insert(d.id, node_index);
+        h.insert(d.id, idx);
     }
 
     for c in &cls {
-        let node_index = g.add_node(GraphNode {
-            label: format!("Client: {}", c.id),
+        let idx = g.add_node(GraphNode {
+            id: c.id,
+            label: format!("Client {}", c.id),
         });
-        h.insert(c.id, node_index);
+        h.insert(c.id, idx);
     }
 
     for s in &srvs {
-        let node_index = g.add_node(GraphNode {
-            label: format!("Server: {}", s.id),
+        let idx = g.add_node(GraphNode {
+            id: s.id,
+            label: format!("Server {}", s.id),
         });
-        h.insert(s.id, node_index);
+        h.insert(s.id, idx);
     }
 
+    // Add edges
     for d in &v {
         for n in &d.connected_node_ids {
-            g.add_edge(h[&d.id], h[n], ());
+            if !edges.contains(&(d.id, *n)) || !edges.contains(&(*n, d.id)) {
+                g.add_edge(h[&d.id], h[n], ());
+                edges.insert((d.id, *n));
+            }
         }
     }
 
     for c in &cls {
         for n in &c.connected_drone_ids {
-            g.add_edge(h[&c.id], h[n], ());
+            if !edges.contains(&(c.id, *n)) || !edges.contains(&(*n, c.id)) {
+                g.add_edge(h[&c.id], h[n], ());
+                edges.insert((c.id, *n));
+            }
         }
     }
 
     for s in &srvs {
         for n in &s.connected_drone_ids {
-            g.add_edge(h[&s.id], h[n], ());
+            if !edges.contains(&(s.id, *n)) || !edges.contains(&(*n, s.id)) {
+                g.add_edge(h[&s.id], h[n], ());
+                edges.insert((s.id, *n));
+            }
         }
     }
-
-    // let a = g.add_node(GraphNode {
-    //     label: "Client".to_string(),
-    // });
-    // let b = g.add_node(GraphNode {
-    //     label: "Server".to_string(),
-    // });
-    // let c = g.add_node(GraphNode {
-    //     label: "Drone".to_string(),
-    // });
-
-    // g.add_edge(a, b, ());
-    // g.add_edge(b, c, ());
-    // g.add_edge(c, a, ());
 
     g
 }
