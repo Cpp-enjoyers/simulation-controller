@@ -5,12 +5,18 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{CentralPanel, SidePanel};
 use egui_graphs::{
-    DefaultGraphView, Edge, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle
+    DefaultGraphView, Edge, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
+    SettingsStyle,
 };
-use petgraph::{stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
+use petgraph::{
+    stable_graph::{NodeIndex, StableGraph, StableUnGraph},
+    Undirected,
+};
 use std::collections::HashMap;
 use wg_2024::{
-    config::Drone, controller::{DroneCommand, DroneEvent}, network::NodeId
+    config::{Client, Drone, Server},
+    controller::{DroneCommand, DroneEvent},
+    network::NodeId,
 };
 
 #[derive(Clone, Default)]
@@ -24,8 +30,13 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    fn new(_: &CreationContext<'_>, drones: Vec<Drone>) -> Self {
-        let g = generate_graph(drones);
+    fn new(
+        _: &CreationContext<'_>,
+        drones: Vec<Drone>,
+        clients: Vec<Client>,
+        servers: Vec<Server>,
+    ) -> Self {
+        let g = generate_graph(drones, clients, servers);
         MyApp {
             network: Graph::from(&g),
             selected_node: Option::default(),
@@ -76,19 +87,46 @@ impl eframe::App for MyApp {
     }
 }
 
-fn generate_graph(v: Vec<Drone>) -> StableGraph<GraphNode, (), Undirected> {
+fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableGraph<GraphNode, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
-    println!("drones: {:?}", v);
 
     for d in &v {
-        let node_index = g.add_node(GraphNode { label: format!("Drone: {}", d.id) });
+        let node_index = g.add_node(GraphNode {
+            label: format!("Drone: {}", d.id),
+        });
         h.insert(d.id, node_index);
+    }
+
+    for c in &cls {
+        let node_index = g.add_node(GraphNode {
+            label: format!("Client: {}", c.id),
+        });
+        h.insert(c.id, node_index);
+    }
+
+    for s in &srvs {
+        let node_index = g.add_node(GraphNode {
+            label: format!("Server: {}", s.id),
+        });
+        h.insert(s.id, node_index);
     }
 
     for d in &v {
         for n in &d.connected_node_ids {
             g.add_edge(h[&d.id], h[n], ());
+        }
+    }
+
+    for c in &cls {
+        for n in &c.connected_drone_ids {
+            g.add_edge(h[&c.id], h[n], ());
+        }
+    }
+
+    for s in &srvs {
+        for n in &s.connected_drone_ids {
+            g.add_edge(h[&s.id], h[n], ());
         }
     }
 
@@ -116,6 +154,8 @@ pub struct SimulationController {
     clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
     servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
     drones: Vec<Drone>,
+    clients: Vec<Client>,
+    servers: Vec<Server>,
 }
 
 impl SimulationController {
@@ -125,6 +165,8 @@ impl SimulationController {
         clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
         servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
         drones: Vec<Drone>,
+        clients: Vec<Client>,
+        servers: Vec<Server>,
     ) -> Self {
         SimulationController {
             id,
@@ -132,6 +174,8 @@ impl SimulationController {
             clients_channels,
             servers_channels,
             drones,
+            clients,
+            servers,
         }
     }
 
@@ -144,7 +188,14 @@ impl SimulationController {
         eframe::run_native(
             "Simulation Controller",
             options,
-            Box::new(|cc| Ok(Box::new(MyApp::new(cc, self.drones.clone())))),
+            Box::new(|cc| {
+                Ok(Box::new(MyApp::new(
+                    cc,
+                    self.drones.clone(),
+                    self.clients.clone(),
+                    self.servers.clone(),
+                )))
+            }),
         )
         .expect("Failed to run simulation controller");
     }
