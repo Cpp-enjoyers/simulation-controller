@@ -120,7 +120,7 @@ fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableG
     // Add edges
     for d in &v {
         for n in &d.connected_node_ids {
-            if !edges.contains(&(d.id, *n)) || !edges.contains(&(*n, d.id)) {
+            if !edges.contains(&(d.id, *n)) && !edges.contains(&(*n, d.id)) {
                 g.add_edge(h[&d.id], h[n], ());
                 edges.insert((d.id, *n));
             }
@@ -129,7 +129,7 @@ fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableG
 
     for c in &cls {
         for n in &c.connected_drone_ids {
-            if !edges.contains(&(c.id, *n)) || !edges.contains(&(*n, c.id)) {
+            if !edges.contains(&(c.id, *n)) && !edges.contains(&(*n, c.id)) {
                 g.add_edge(h[&c.id], h[n], ());
                 edges.insert((c.id, *n));
             }
@@ -138,7 +138,7 @@ fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableG
 
     for s in &srvs {
         for n in &s.connected_drone_ids {
-            if !edges.contains(&(s.id, *n)) || !edges.contains(&(*n, s.id)) {
+            if !edges.contains(&(s.id, *n)) && !edges.contains(&(*n, s.id)) {
                 g.add_edge(h[&s.id], h[n], ());
                 edges.insert((s.id, *n));
             }
