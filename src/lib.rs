@@ -9,7 +9,7 @@ use egui_graphs::{
     SettingsStyle,
 };
 use petgraph::{graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
-use widget::Widget;
+use widget::{ClientWidget, Drawable, DroneWidget, Widget, WidgetType, ServerWidget};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
@@ -25,7 +25,7 @@ pub struct GraphNode {
 }
 
 pub struct MyApp {
-    network: Graph<GraphNode, (), Undirected>,
+    network: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
     input: String,
     result: Vec<String>,
@@ -37,7 +37,7 @@ impl MyApp {
         // drones: Vec<Drone>,
         // clients: Vec<Client>,
         // servers: Vec<Server>,
-        graph: StableGraph<GraphNode, (), Undirected>,
+        graph: StableGraph<WidgetType, (), Undirected>,
     ) -> Self {
         // let graph = generate_graph(drones, clients, servers);
         MyApp {
@@ -61,59 +61,47 @@ impl MyApp {
             if let Some(idx) = self.selected_node {
                 ui.label(format!("{:?}", idx));
                 let node = self.network.node(idx).unwrap().payload();
-                match &node.node_type {
-                    widget::NodeType::Drone { command_ch, event_ch } => todo!(),
-                    widget::NodeType::Client { command_ch, event_ch } => {
-                        ui.label("Client: {node.id}");
-                        ui.label("Ask for Server files");
-                        ui.text_edit_singleline(&mut self.input);
-                        if ui.button("Send").clicked() {
-                            let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
-                            // let fake_cmd = ClientCommand::AskListOfFiles(3);
-                            command_ch.send(cmd);
-                        }
-
-                        ui.separator();
-                        ui.label("Received files:");
-                        while let Ok(event) = event_ch.try_recv() {
-                            match event {
-                                ClientEvent::ListOfFiles(files, id) => {
-                                    self.result = files;
-                                }
-                                _ => {}
-                            }
-                        }
-
-                        for f in &self.result {
-                            ui.label(f);
-                        }
-                    },
-                    widget::NodeType::Server { command_ch, event_ch } => todo!(),
-                }
-                // match node.node_type {
-                //     widget::NodeType::Drone => {
-                //         ui.label("Drone");
-                //     }
-                //     widget::NodeType::Client => {
-                //         ui.label("Client");
+                // match &node.node_type {
+                //     widget::NodeType::Drone { command_ch, event_ch } => todo!(),
+                //     widget::NodeType::Client { command_ch, event_ch } => {
+                //         ui.label("Client: {node.id}");
                 //         ui.label("Ask for Server files");
-                //         ui.text_edit_singleline(&mut "".to_string());
+                //         ui.text_edit_singleline(&mut self.input);
                 //         if ui.button("Send").clicked() {
-                //             // Send message to server
+                //             let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
+                //             // let fake_cmd = ClientCommand::AskListOfFiles(3);
+                //             command_ch.send(cmd);
                 //         }
-                //     }
-                //     widget::NodeType::Server => {
-                //         ui.label("Server");
-                //     }
+
+                //         ui.separator();
+                //         ui.label("Received files:");
+                //         while let Ok(event) = event_ch.try_recv() {
+                //             match event {
+                //                 ClientEvent::ListOfFiles(files, id) => {
+                //                     self.result = files;
+                //                 }
+                //                 _ => {}
+                //             }
+                //         }
+
+                //         for f in &self.result {
+                //             ui.label(f);
+                //         }
+                //     },
+                //     widget::NodeType::Server { command_ch, event_ch } => todo!(),
                 // }
-                // let node_label = self.network.node(idx).unwrap().payload().label.clone();
-                // ui.label(format!("Label: {}", node_label));
+
+                match node {
+                    WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
+                    WidgetType::Client(client_widget) => client_widget.draw(ui),
+                    WidgetType::Server(server_widget) => server_widget.draw(ui),
+                }
             }
         });
         CentralPanel::default().show(ctx, |ui| {
             let graph_widget: &mut GraphView<
                 '_,
-                GraphNode,
+                WidgetType,
                 (),
                 petgraph::Undirected,
                 u32,
@@ -233,41 +221,35 @@ impl SimulationController {
         }
     }
 
-    fn generate_graph(&self) -> StableGraph<GraphNode, (), Undirected> {
+    fn generate_graph(&self) -> StableGraph<WidgetType, (), Undirected> {
         let mut g = StableUnGraph::default();
         let mut h: HashMap<u8, NodeIndex> = HashMap::new();
         let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
         for dr in &self.drones {
-            let idx = g.add_node(GraphNode {
+            let idx = g.add_node(WidgetType::Drone(DroneWidget {
                 id: dr.id,
-                node_type: widget::NodeType::Drone {
-                    command_ch: self.drones_channels[&dr.id].0.clone(),
-                    event_ch: self.drones_channels[&dr.id].1.clone(),
-                },
-            });
+                command_ch: self.drones_channels[&dr.id].0.clone(),
+                event_ch: self.drones_channels[&dr.id].1.clone(),
+            }));
             h.insert(dr.id, idx);
         }
 
         for cl in &self.clients {
-            let idx = g.add_node(GraphNode {
+            let idx = g.add_node(WidgetType::Client(ClientWidget {
                 id: cl.id,
-                node_type: widget::NodeType::Client {
-                    command_ch: self.clients_channels[&cl.id].0.clone(),
-                    event_ch: self.clients_channels[&cl.id].1.clone(),
-                },
-            });
+                command_ch: self.clients_channels[&cl.id].0.clone(),
+                event_ch: self.clients_channels[&cl.id].1.clone(),
+            }));
             h.insert(cl.id, idx);
         }
 
         for srv in &self.servers {
-            let idx = g.add_node(GraphNode {
+            let idx = g.add_node(WidgetType::Server(ServerWidget {
                 id: srv.id,
-                node_type: widget::NodeType::Server {
-                    command_ch: self.servers_channels[&srv.id].0.clone(),
-                    event_ch: self.servers_channels[&srv.id].1.clone(),
-                },
-            });
+                command_ch: self.servers_channels[&srv.id].0.clone(),
+                event_ch: self.servers_channels[&srv.id].1.clone(),
+            }));
             h.insert(srv.id, idx);
         }
 
