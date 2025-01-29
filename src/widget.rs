@@ -16,3 +16,23 @@ pub enum NodeType {
     Client { command_ch: Sender<ClientCommand>, event_ch: Receiver<ClientEvent>, request_id: String },
     Server { command_ch: Sender<ServerCommand>, event_ch: Receiver<ServerEvent> },
 }
+
+
+pub struct WidgetV2 {
+    id: NodeId,
+    command_ch: Sender<Commands>,
+    event_ch: Receiver<Events>,
+}
+
+pub enum Commands {
+    D(DroneCommand),
+    C(ClientCommand),
+    S(ServerCommand),
+}
+
+pub enum Events {
+    D(DroneEvent),
+    C(ClientEvent),
+    S(ServerEvent),
+}
+
