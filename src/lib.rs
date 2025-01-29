@@ -27,7 +27,8 @@ pub struct GraphNode {
 pub struct MyApp {
     network: Graph<GraphNode, (), Undirected>,
     selected_node: Option<NodeIndex>,
-    input: String
+    input: String,
+    result: Vec<String>,
 }
 
 impl MyApp {
@@ -43,6 +44,7 @@ impl MyApp {
             network: Graph::from(&graph),
             selected_node: Option::default(),
             input: String::default(),
+            result: Vec::default(),
         }
     }
 
@@ -73,17 +75,16 @@ impl MyApp {
 
                         ui.separator();
                         ui.label("Received files:");
-                        let mut fs: Vec<String> = Vec::new();
                         while let Ok(event) = event_ch.try_recv() {
                             match event {
                                 ClientEvent::ListOfFiles(files, id) => {
-                                    fs = files;
+                                    self.result = files;
                                 }
                                 _ => {}
                             }
                         }
 
-                        for f in fs {
+                        for f in &self.result {
                             ui.label(f);
                         }
                     },
