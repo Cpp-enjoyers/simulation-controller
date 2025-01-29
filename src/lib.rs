@@ -60,37 +60,7 @@ impl MyApp {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 ui.label(format!("{:?}", idx));
-                let node = self.network.node(idx).unwrap().payload();
-                // match &node.node_type {
-                //     widget::NodeType::Drone { command_ch, event_ch } => todo!(),
-                //     widget::NodeType::Client { command_ch, event_ch } => {
-                //         ui.label("Client: {node.id}");
-                //         ui.label("Ask for Server files");
-                //         ui.text_edit_singleline(&mut self.input);
-                //         if ui.button("Send").clicked() {
-                //             let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
-                //             // let fake_cmd = ClientCommand::AskListOfFiles(3);
-                //             command_ch.send(cmd);
-                //         }
-
-                //         ui.separator();
-                //         ui.label("Received files:");
-                //         while let Ok(event) = event_ch.try_recv() {
-                //             match event {
-                //                 ClientEvent::ListOfFiles(files, id) => {
-                //                     self.result = files;
-                //                 }
-                //                 _ => {}
-                //             }
-                //         }
-
-                //         for f in &self.result {
-                //             ui.label(f);
-                //         }
-                //     },
-                //     widget::NodeType::Server { command_ch, event_ch } => todo!(),
-                // }
-
+                let node = self.network.node_mut(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
                     WidgetType::Client(client_widget) => client_widget.draw(ui),
@@ -236,11 +206,11 @@ impl SimulationController {
         }
 
         for cl in &self.clients {
-            let idx = g.add_node(WidgetType::Client(ClientWidget {
-                id: cl.id,
-                command_ch: self.clients_channels[&cl.id].0.clone(),
-                event_ch: self.clients_channels[&cl.id].1.clone(),
-            }));
+            let idx = g.add_node(WidgetType::Client(ClientWidget::new(
+                cl.id, 
+                self.clients_channels[&cl.id].0.clone(), 
+                self.clients_channels[&cl.id].1.clone()) 
+            ));
             h.insert(cl.id, idx);
         }
 
