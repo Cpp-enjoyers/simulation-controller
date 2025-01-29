@@ -27,6 +27,7 @@ pub struct GraphNode {
 pub struct MyApp {
     network: Graph<GraphNode, (), Undirected>,
     selected_node: Option<NodeIndex>,
+    input: String
 }
 
 impl MyApp {
@@ -41,6 +42,7 @@ impl MyApp {
         MyApp {
             network: Graph::from(&graph),
             selected_node: Option::default(),
+            input: String::default(),
         }
     }
 
@@ -62,11 +64,11 @@ impl MyApp {
                     widget::NodeType::Client { command_ch, event_ch , request_id} => {
                         ui.label("Client: {node.id}");
                         ui.label("Ask for Server files");
-                        let mut input: String = String::new();
-                        ui.text_edit_singleline(&mut input);
+                        ui.text_edit_singleline(&mut self.input);
                         if ui.button("Send").clicked() {
-                            let cmd = ClientCommand::AskListOfFiles(input.parse().unwrap());
-                            command_ch.send(cmd);
+                            // let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
+                            let fake_cmd = ClientCommand::AskListOfFiles(3);
+                            command_ch.send(fake_cmd);
                         }
 
                         ui.separator();
