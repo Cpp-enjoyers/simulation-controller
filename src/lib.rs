@@ -68,9 +68,9 @@ impl MyApp {
                         ui.label("Ask for Server files");
                         ui.text_edit_singleline(&mut self.input);
                         if ui.button("Send").clicked() {
-                            // let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
-                            let fake_cmd = ClientCommand::AskListOfFiles(3);
-                            command_ch.send(fake_cmd);
+                            let cmd = ClientCommand::AskListOfFiles(self.input.parse().unwrap());
+                            // let fake_cmd = ClientCommand::AskListOfFiles(3);
+                            command_ch.send(cmd);
                         }
 
                         ui.separator();
