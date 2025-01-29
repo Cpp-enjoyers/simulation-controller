@@ -101,6 +101,7 @@ impl Drawable for ClientWidget {
         while let Ok(event) = self.event_ch.try_recv() {
             match event {
                 ClientEvent::ListOfFiles(files, id) => {
+                    println!("Received files from server {}: {:?}", id, files);
                     self.list_of_files = files;
                 }
                 _ => {}
