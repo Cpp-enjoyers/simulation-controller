@@ -30,15 +30,35 @@ pub enum WidgetType {
 
 #[derive(Clone)]
 pub struct DroneWidget {
-    pub id: NodeId,
-    pub command_ch: Sender<DroneCommand>,
-    pub event_ch: Receiver<DroneEvent>,
+    id: NodeId,
+    command_ch: Sender<DroneCommand>,
+    event_ch: Receiver<DroneEvent>,
+    pdr_input: String,
+}
+
+impl DroneWidget {
+    pub fn new(id: NodeId, command_ch: Sender<DroneCommand>, event_ch: Receiver<DroneEvent>) -> Self {
+        Self {
+            id,
+            command_ch,
+            event_ch,
+            pdr_input: String::default(),
+        }
+    }
 }
 
 impl Drawable for DroneWidget {
     fn draw(&mut self, ui: &mut Ui) {
         // Draw the drone widget
         ui.label(format!("Drone {}", self.id));
+
+        // Send command to change the pdr
+        ui.label("Change PDR");
+        ui.text_edit_singleline(&mut self.pdr_input);
+        if ui.button("Send").clicked() {
+            let cmd = DroneCommand::SetPacketDropRate(self.pdr_input.parse().unwrap());
+            self.command_ch.send(cmd);
+        }
     }
 }
 
