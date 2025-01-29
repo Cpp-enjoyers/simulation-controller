@@ -197,11 +197,11 @@ impl SimulationController {
         let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
         for dr in &self.drones {
-            let idx = g.add_node(WidgetType::Drone(DroneWidget {
-                id: dr.id,
-                command_ch: self.drones_channels[&dr.id].0.clone(),
-                event_ch: self.drones_channels[&dr.id].1.clone(),
-            }));
+            let idx = g.add_node(WidgetType::Drone(DroneWidget::new(
+                dr.id,
+                self.drones_channels[&dr.id].0.clone(),
+                self.drones_channels[&dr.id].1.clone(),
+            )));
             h.insert(dr.id, idx);
         }
 
