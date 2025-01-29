@@ -13,7 +13,7 @@ pub struct Widget {
 #[derive(Clone)]
 pub enum NodeType {
     Drone { command_ch: Sender<DroneCommand>, event_ch: Receiver<DroneEvent> },
-    Client { command_ch: Sender<ClientCommand>, event_ch: Receiver<ClientEvent>, request_id: String },
+    Client { command_ch: Sender<ClientCommand>, event_ch: Receiver<ClientEvent> },
     Server { command_ch: Sender<ServerCommand>, event_ch: Receiver<ServerEvent> },
 }
 

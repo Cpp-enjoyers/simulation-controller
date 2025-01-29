@@ -63,7 +63,7 @@ impl MyApp {
                 let node = self.network.node(idx).unwrap().payload();
                 match &node.node_type {
                     widget::NodeType::Drone { command_ch, event_ch } => todo!(),
-                    widget::NodeType::Client { command_ch, event_ch , request_id} => {
+                    widget::NodeType::Client { command_ch, event_ch } => {
                         ui.label("Client: {node.id}");
                         ui.label("Ask for Server files");
                         ui.text_edit_singleline(&mut self.input);
@@ -255,7 +255,6 @@ impl SimulationController {
                 node_type: widget::NodeType::Client {
                     command_ch: self.clients_channels[&cl.id].0.clone(),
                     event_ch: self.clients_channels[&cl.id].1.clone(),
-                    request_id: Default::default(),
                 },
             });
             h.insert(cl.id, idx);
