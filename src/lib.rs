@@ -5,24 +5,23 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{CentralPanel, SidePanel};
 use egui_graphs::{
-    DefaultGraphView, Edge, Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
+    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
     SettingsStyle,
 };
-use petgraph::{
-    stable_graph::{NodeIndex, StableGraph, StableUnGraph},
-    Undirected,
-};
+use petgraph::{graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
+use widget::Widget;
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
 };
+mod widget;
 
-#[derive(Clone, Default, Hash, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct GraphNode {
     pub id: u8,
-    pub label: String,
+    pub node_type: widget::NodeType,
 }
 
 pub struct MyApp {
@@ -33,13 +32,14 @@ pub struct MyApp {
 impl MyApp {
     fn new(
         _: &CreationContext<'_>,
-        drones: Vec<Drone>,
-        clients: Vec<Client>,
-        servers: Vec<Server>,
+        // drones: Vec<Drone>,
+        // clients: Vec<Client>,
+        // servers: Vec<Server>,
+        graph: StableGraph<GraphNode, (), Undirected>,
     ) -> Self {
-        let g = generate_graph(drones, clients, servers);
+        // let graph = generate_graph(drones, clients, servers);
         MyApp {
-            network: Graph::from(&g),
+            network: Graph::from(&graph),
             selected_node: Option::default(),
         }
     }
@@ -56,8 +56,55 @@ impl MyApp {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 ui.label(format!("{:?}", idx));
-                let node_label = self.network.node(idx).unwrap().payload().label.clone();
-                ui.label(format!("Label: {}", node_label));
+                let node = self.network.node(idx).unwrap().payload();
+                match &node.node_type {
+                    widget::NodeType::Drone { command_ch, event_ch } => todo!(),
+                    widget::NodeType::Client { command_ch, event_ch , request_id} => {
+                        ui.label("Client: {node.id}");
+                        ui.label("Ask for Server files");
+                        let mut input: String = String::new();
+                        ui.text_edit_singleline(&mut input);
+                        if ui.button("Send").clicked() {
+                            let cmd = ClientCommand::AskListOfFiles(input.parse().unwrap());
+                            command_ch.send(cmd);
+                        }
+
+                        ui.separator();
+                        ui.label("Received files:");
+                        let mut fs: Vec<String> = Vec::new();
+                        while let Ok(event) = event_ch.try_recv() {
+                            match event {
+                                ClientEvent::ListOfFiles(files, id) => {
+                                    fs = files;
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        for f in fs {
+                            ui.label(f);
+                        }
+                    },
+                    widget::NodeType::Server { command_ch, event_ch } => todo!(),
+                }
+                // match node.node_type {
+                //     widget::NodeType::Drone => {
+                //         ui.label("Drone");
+                //     }
+                //     widget::NodeType::Client => {
+                //         ui.label("Client");
+                //         ui.label("Ask for Server files");
+                //         ui.text_edit_singleline(&mut "".to_string());
+                //         if ui.button("Send").clicked() {
+                //             // Send message to server
+                //         }
+                //     }
+                //     widget::NodeType::Server => {
+                //         ui.label("Server");
+                //     }
+                // }
+                // let node_label = self.network.node(idx).unwrap().payload().label.clone();
+                // ui.label(format!("Label: {}", node_label));
             }
         });
         CentralPanel::default().show(ctx, |ui| {
@@ -88,65 +135,68 @@ impl eframe::App for MyApp {
     }
 }
 
-fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableGraph<GraphNode, (), Undirected> {
-    let mut g = StableUnGraph::default();
-    let mut h: HashMap<u8, NodeIndex> = HashMap::new();
-    let mut edges: HashSet<(u8, u8)> = HashSet::new();
+// fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableGraph<GraphNode, (), Undirected> {
+//     let mut g = StableUnGraph::default();
+//     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
+//     let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
-    for d in &v {
-        let idx = g.add_node(GraphNode {
-            id: d.id,
-            label: format!("Drone {}", d.id),
-        });
-        h.insert(d.id, idx);
-    }
+//     for d in &v {
+//         let idx = g.add_node(GraphNode {
+//             id: d.id,
+//             node_type: widget::NodeType::Drone {
+//                 command_ch: d.command_ch.clone(),
+//                 event_ch: d.event_ch.clone(),
+//             },
+//         });
+//         h.insert(d.id, idx);
+//     }
 
-    for c in &cls {
-        let idx = g.add_node(GraphNode {
-            id: c.id,
-            label: format!("Client {}", c.id),
-        });
-        h.insert(c.id, idx);
-    }
+//     for c in &cls {
+//         let idx = g.add_node(GraphNode {
+//             id: c.id,
+//             node_type: widget::NodeType::Client,
+//         });
+//         h.insert(c.id, idx);
+//     }
 
-    for s in &srvs {
-        let idx = g.add_node(GraphNode {
-            id: s.id,
-            label: format!("Server {}", s.id),
-        });
-        h.insert(s.id, idx);
-    }
+//     for s in &srvs {
+//         let idx = g.add_node(GraphNode {
+//             id: s.id,
+//             node_type: widget::NodeType::Server,
+//         });
+//         h.insert(s.id, idx);
+//     }
 
-    // Add edges
-    for d in &v {
-        for n in &d.connected_node_ids {
-            if !edges.contains(&(d.id, *n)) && !edges.contains(&(*n, d.id)) {
-                g.add_edge(h[&d.id], h[n], ());
-                edges.insert((d.id, *n));
-            }
-        }
-    }
+//     // Add edges
+//     for d in &v {
+//         for n in &d.connected_node_ids {
+//             if !edges.contains(&(d.id, *n)) && !edges.contains(&(*n, d.id)) {
+//                 g.add_edge(h[&d.id], h[n], ());
+//                 edges.insert((d.id, *n));
+//             }
+//         }
+//     }
 
-    for c in &cls {
-        for n in &c.connected_drone_ids {
-            if !edges.contains(&(c.id, *n)) && !edges.contains(&(*n, c.id)) {
-                g.add_edge(h[&c.id], h[n], ());
-                edges.insert((c.id, *n));
-            }
-        }
-    }
+//     for c in &cls {
+//         for n in &c.connected_drone_ids {
+//             if !edges.contains(&(c.id, *n)) && !edges.contains(&(*n, c.id)) {
+//                 g.add_edge(h[&c.id], h[n], ());
+//                 edges.insert((c.id, *n));
+//             }
+//         }
+//     }
 
-    for s in &srvs {
-        for n in &s.connected_drone_ids {
-            if !edges.contains(&(s.id, *n)) && !edges.contains(&(*n, s.id)) {
-                g.add_edge(h[&s.id], h[n], ());
-                edges.insert((s.id, *n));
-            }
-        }
-    }
+//     for s in &srvs {
+//         for n in &s.connected_drone_ids {
+//             if !edges.contains(&(s.id, *n)) && !edges.contains(&(*n, s.id)) {
+//                 g.add_edge(h[&s.id], h[n], ());
+//                 edges.insert((s.id, *n));
+//             }
+//         }
+//     }
 
-    g
-}
+//     g
+// }
 
 #[derive(Debug)]
 pub struct SimulationController {
@@ -180,11 +230,78 @@ impl SimulationController {
         }
     }
 
+    fn generate_graph(&self) -> StableGraph<GraphNode, (), Undirected> {
+        let mut g = StableUnGraph::default();
+        let mut h: HashMap<u8, NodeIndex> = HashMap::new();
+        let mut edges: HashSet<(u8, u8)> = HashSet::new();
+
+        for dr in &self.drones {
+            let idx = g.add_node(GraphNode {
+                id: dr.id,
+                node_type: widget::NodeType::Drone {
+                    command_ch: self.drones_channels[&dr.id].0.clone(),
+                    event_ch: self.drones_channels[&dr.id].1.clone(),
+                },
+            });
+            h.insert(dr.id, idx);
+        }
+
+        for cl in &self.clients {
+            let idx = g.add_node(GraphNode {
+                id: cl.id,
+                node_type: widget::NodeType::Client {
+                    command_ch: self.clients_channels[&cl.id].0.clone(),
+                    event_ch: self.clients_channels[&cl.id].1.clone(),
+                    request_id: Default::default(),
+                },
+            });
+            h.insert(cl.id, idx);
+        }
+
+        for srv in &self.servers {
+            let idx = g.add_node(GraphNode {
+                id: srv.id,
+                node_type: widget::NodeType::Server {
+                    command_ch: self.servers_channels[&srv.id].0.clone(),
+                    event_ch: self.servers_channels[&srv.id].1.clone(),
+                },
+            });
+            h.insert(srv.id, idx);
+        }
+
+        // Add edges
+        for dr in &self.drones {
+            for n in &dr.connected_node_ids {
+                if !edges.contains(&(dr.id, *n)) && !edges.contains(&(*n, dr.id)) {
+                    g.add_edge(h[&dr.id], h[n], ());
+                    edges.insert((dr.id, *n));
+                }
+            }
+        }
+
+        for cl in &self.clients {
+            for n in &cl.connected_drone_ids {
+                if !edges.contains(&(cl.id, *n)) && !edges.contains(&(*n, cl.id)) {
+                    g.add_edge(h[&cl.id], h[n], ());
+                    edges.insert((cl.id, *n));
+                }
+            }
+        }
+
+        for srv in &self.servers {
+            for n in &srv.connected_drone_ids {
+                if !edges.contains(&(srv.id, *n)) && !edges.contains(&(*n, srv.id)) {
+                    g.add_edge(h[&srv.id], h[n], ());
+                    edges.insert((srv.id, *n));
+                }
+            }
+        }
+
+        g
+    }
+
     pub fn run(&mut self) {
-        println!(
-            "Running simulation controller with drones: {}",
-            self.drones_channels.len()
-        );
+        let graph = self.generate_graph();
         let options = eframe::NativeOptions::default();
         eframe::run_native(
             "Simulation Controller",
@@ -192,9 +309,10 @@ impl SimulationController {
             Box::new(|cc| {
                 Ok(Box::new(MyApp::new(
                     cc,
-                    self.drones.clone(),
-                    self.clients.clone(),
-                    self.servers.clone(),
+                    // self.drones.clone(),
+                    // self.clients.clone(),
+                    // self.servers.clone(),
+                    graph,
                 )))
             }),
         )
