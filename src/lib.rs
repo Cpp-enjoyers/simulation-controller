@@ -33,6 +33,8 @@ pub struct MyApp {
     selected_node: Option<NodeIndex>,
     add_remove_input: String,
     drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
+    clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
+    servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
 }
 
 impl MyApp {
@@ -43,6 +45,8 @@ impl MyApp {
         // servers: Vec<Server>,
         graph: StableGraph<WidgetType, (), Undirected>,
         drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
+        clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
+        servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
     ) -> Self {
         let mut graph = Graph::from(&graph);
 
@@ -63,6 +67,8 @@ impl MyApp {
         MyApp {
             network: graph,
             drones_channels,
+            clients_channels,
+            servers_channels,
             selected_node: Option::default(),
             add_remove_input: String::default(),
         }
@@ -149,8 +155,12 @@ impl MyApp {
                         WidgetType::Drone(drone_widget) => {
                             drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
                         },
-                        WidgetType::Client(client_widget) => todo!(),
-                        WidgetType::Server(server_widget) => todo!(),
+                        WidgetType::Client(client_widget) => {
+                            client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                        },
+                        WidgetType::Server(server_widget) => {
+                            server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                        },
                     }
                     
                     let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
@@ -158,8 +168,12 @@ impl MyApp {
                         WidgetType::Drone(other_drone_widget) => {
                             other_drone_widget.add_neighbor(current_node_id, self.drones_channels[&current_node_id].2.clone());
                         },
-                        WidgetType::Client(other_client_widget) => todo!(),
-                        WidgetType::Server(other_server_widget) => todo!(),
+                        WidgetType::Client(other_client_widget) => {
+                            other_client_widget.add_neighbor(current_node_id, self.clients_channels[&current_node_id].2.clone());
+                        },
+                        WidgetType::Server(other_server_widget) => {
+                            other_server_widget.add_neighbor(current_node_id, self.servers_channels[&current_node_id].2.clone());
+                        },
                     }
                     self.network.add_edge(idx, neighbor_g_idx, ());
 
@@ -287,6 +301,8 @@ impl SimulationController {
                     cc,
                     graph,
                     self.drones_channels.clone(),
+                    self.clients_channels.clone(),
+                    self.servers_channels.clone(),
                 )))
             }),
         )
