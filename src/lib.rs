@@ -167,6 +167,7 @@ impl MyApp {
                     match other_node {
                         WidgetType::Drone(other_drone_widget) => {
                             println!("drones_channels: {:?}", self.drones_channels);
+                            println!("current_node_id: {:?}", current_node_id);
                             other_drone_widget.add_neighbor(current_node_id, self.drones_channels[&current_node_id].2.clone());
                         },
                         WidgetType::Client(other_client_widget) => {
