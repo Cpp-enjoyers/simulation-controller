@@ -5,17 +5,21 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{CentralPanel, SidePanel};
 use egui_graphs::{
-    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
-    SettingsStyle,
+    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle,
 };
-use petgraph::{graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, visit::NodeRef, Undirected};
-use widget::{ClientWidget, Drawable, DroneWidget, Widget, WidgetType, ServerWidget};
+use petgraph::{
+    graph,
+    stable_graph::{NodeIndex, StableGraph, StableUnGraph},
+    visit::NodeRef,
+    Undirected,
+};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
 };
+use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, Widget, WidgetType};
 mod widget;
 
 #[derive(Clone)]
@@ -42,13 +46,14 @@ impl MyApp {
         let mut graph = Graph::from(&graph);
 
         // Since graph library is beatiful, first iterate over the nodes to construct the labels for each node
-        let temp: Vec<(NodeIndex, String)> = graph.nodes_iter().map(|(idx, node)| {
-            match node.payload() {
+        let temp: Vec<(NodeIndex, String)> = graph
+            .nodes_iter()
+            .map(|(idx, node)| match node.payload() {
                 WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
                 WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
                 WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
-            }
-        }).collect();
+            })
+            .collect();
         // Then iterate over the nodes again to set the labels
         for (idx, label) in temp {
             graph.node_mut(idx).unwrap().set_label(label);
@@ -220,10 +225,10 @@ impl SimulationController {
 
         for cl in &self.clients {
             let idx = g.add_node(WidgetType::Client(ClientWidget::new(
-                cl.id, 
-                self.clients_channels[&cl.id].0.clone(), 
-                self.clients_channels[&cl.id].1.clone()) 
-            ));
+                cl.id,
+                self.clients_channels[&cl.id].0.clone(),
+                self.clients_channels[&cl.id].1.clone(),
+            )));
             h.insert(cl.id, idx);
         }
 
