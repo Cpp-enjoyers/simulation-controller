@@ -189,6 +189,7 @@ impl MyApp {
                         
                     }
                     
+                    ui.add_space(15.0);
                     // Remove sender button
                     ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.rm_neighbor_input));
                     let remove_btn = ui.add(Button::new("Remove sender"));
