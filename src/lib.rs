@@ -8,7 +8,7 @@ use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction,
     SettingsStyle,
 };
-use petgraph::{graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected};
+use petgraph::{graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, visit::NodeRef, Undirected};
 use widget::{ClientWidget, Drawable, DroneWidget, Widget, WidgetType, ServerWidget};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
@@ -39,9 +39,20 @@ impl MyApp {
         // servers: Vec<Server>,
         graph: StableGraph<WidgetType, (), Undirected>,
     ) -> Self {
-        // let graph = generate_graph(drones, clients, servers);
+        let mut graph = Graph::from(&graph);
+        let temp: Vec<(NodeIndex, String)> = graph.nodes_iter().map(|(idx, node)| {
+            match node.payload() {
+                WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
+                WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
+                WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
+                
+            }
+        }).collect();
+        for (idx, label) in temp {
+            graph.node_mut(idx).unwrap().set_label(label);
+        }
         MyApp {
-            network: Graph::from(&graph),
+            network: graph,
             selected_node: Option::default(),
             input: String::default(),
             result: Vec::default(),
