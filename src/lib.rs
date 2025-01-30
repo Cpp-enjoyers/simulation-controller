@@ -138,8 +138,9 @@ impl MyApp {
                 ui.horizontal(|ui| {
 
                     // // Buttons to add/remove sender
-                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.add_neighbor_input));
                     let add_btn = ui.add(Button::new("Add sender"));
+                    let btn_size = add_btn.rect.size();
+                    ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
                     if add_btn.clicked() {
                         
                         let neighbor_id = self.add_neighbor_input.parse().unwrap();
