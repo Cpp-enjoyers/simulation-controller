@@ -72,6 +72,9 @@ impl DroneWidget {
         self.command_ch.send(DroneCommand::AddSender(neighbor_id, neighbor_ch));
     }
 
+    pub fn remove_neighbor(&mut self, neighbor_id: u8) {
+        self.command_ch.send(DroneCommand::RemoveSender(neighbor_id));
+    }
 
     pub fn get_id(&self) -> NodeId {
         self.id
@@ -129,6 +132,10 @@ impl ClientWidget {
 
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch.send(ClientCommand::AddSender(neighbor_id, neighbor_ch));
+    }
+
+    pub fn remove_neighbor(&mut self, neighbor_id: u8) {
+        self.command_ch.send(ClientCommand::RemoveSender(neighbor_id));
     }
 
     pub fn get_id(&self) -> NodeId {
@@ -212,6 +219,10 @@ impl ServerWidget {
 
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch.send(ServerCommand::AddSender(neighbor_id, neighbor_ch));
+    }
+
+    pub fn remove_neighbor(&mut self, neighbor_id: u8) {
+        self.command_ch.send(ServerCommand::RemoveSender(neighbor_id));
     }
 
     pub fn get_id(&self) -> NodeId {
