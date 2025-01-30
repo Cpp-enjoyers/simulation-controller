@@ -140,9 +140,9 @@ impl MyApp {
                     ui.vertical_centered_justified(|ui| {
 
                         // // Buttons to add/remove sender
+                        // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
+                        ui.text_edit_singleline(&mut self.add_neighbor_input);
                         let add_btn = ui.add(Button::new("Add sender"));
-                        let btn_size = add_btn.rect.size();
-                        ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
                         if add_btn.clicked() {
                             
                             let neighbor_id = self.add_neighbor_input.parse().unwrap();
@@ -191,47 +191,47 @@ impl MyApp {
                             self.network.add_edge(idx, neighbor_g_idx, ());
                             
                         }
-                    });
-                    
-                    ui.add_space(15.0);
-                    // Remove sender button
-                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.rm_neighbor_input));
-                    let remove_btn = ui.add(Button::new("Remove sender"));
-                    if remove_btn.clicked() {
-                        let neighbor_id = self.rm_neighbor_input.parse().unwrap();
-                        let neighbor_g_idx = self.get_node_idx(neighbor_id);
-                        let current_node = self.network.node_mut(idx).unwrap().payload_mut();
-                        let current_node_id = match current_node {
-                            WidgetType::Drone(drone_widget) =>  {
-                                drone_widget.remove_neighbor(neighbor_id);
-                                drone_widget.get_id()
-                            },
-                            WidgetType::Client(client_widget) => {
-                                client_widget.remove_neighbor(neighbor_id);
-                                client_widget.get_id()
-                            },
-                            WidgetType::Server(server_widget) => {
-                                server_widget.remove_neighbor(neighbor_id);
-                                server_widget.get_id()
-                            },
+                        
+                        ui.add_space(15.0);
+                        // Remove sender button
+                        ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.rm_neighbor_input));
+                        let remove_btn = ui.add(Button::new("Remove sender"));
+                        if remove_btn.clicked() {
+                            let neighbor_id = self.rm_neighbor_input.parse().unwrap();
+                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                            let current_node = self.network.node_mut(idx).unwrap().payload_mut();
+                            let current_node_id = match current_node {
+                                WidgetType::Drone(drone_widget) =>  {
+                                    drone_widget.remove_neighbor(neighbor_id);
+                                    drone_widget.get_id()
+                                },
+                                WidgetType::Client(client_widget) => {
+                                    client_widget.remove_neighbor(neighbor_id);
+                                    client_widget.get_id()
+                                },
+                                WidgetType::Server(server_widget) => {
+                                    server_widget.remove_neighbor(neighbor_id);
+                                    server_widget.get_id()
+                                },
+                                
+                            };
                             
-                        };
-                        
-                        let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
-                        match other_node {
-                            WidgetType::Drone(other_drone_widget) => {
-                                other_drone_widget.remove_neighbor(current_node_id);
-                            },
-                            WidgetType::Client(other_client_widget) => {
-                                other_client_widget.remove_neighbor(current_node_id);
-                            },
-                            WidgetType::Server(other_server_widget) => {
-                                other_server_widget.remove_neighbor(current_node_id);
-                            },
+                            let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                            match other_node {
+                                WidgetType::Drone(other_drone_widget) => {
+                                    other_drone_widget.remove_neighbor(current_node_id);
+                                },
+                                WidgetType::Client(other_client_widget) => {
+                                    other_client_widget.remove_neighbor(current_node_id);
+                                },
+                                WidgetType::Server(other_server_widget) => {
+                                    other_server_widget.remove_neighbor(current_node_id);
+                                },
+                            }
+                            
+                            self.network.remove_edges_between(idx, neighbor_g_idx);
                         }
-                        
-                        self.network.remove_edges_between(idx, neighbor_g_idx);
-                    }
+                    });
                 });
             }
         }); 
