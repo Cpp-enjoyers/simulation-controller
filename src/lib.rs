@@ -3,7 +3,7 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
+use egui::{Button, CentralPanel, SidePanel, TextEdit, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle
 };
@@ -141,7 +141,7 @@ impl MyApp {
                 ui.horizontal(|ui| {
 
                     // // Buttons to add/remove sender
-                    ui.text_edit_singleline(&mut self.add_remove_input);
+                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.add_remove_input));
                     let add_btn = ui.add(Button::new("Add sender"));
                     if add_btn.clicked() {
                         
