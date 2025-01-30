@@ -166,7 +166,9 @@ impl Drawable for ClientWidget {
                 ClientEvent::ServersTypes(types) => {
                     self.servers_types = types;
                 }
-                _ => {}
+                _ => {
+                    println!("Diopovero se finisco qua bestemmio");
+                }
             }
         }
 
