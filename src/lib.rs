@@ -166,6 +166,7 @@ impl MyApp {
                     let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
                     match other_node {
                         WidgetType::Drone(other_drone_widget) => {
+                            println!("drones_channels: {:?}", self.drones_channels);
                             other_drone_widget.add_neighbor(current_node_id, self.drones_channels[&current_node_id].2.clone());
                         },
                         WidgetType::Client(other_client_widget) => {
