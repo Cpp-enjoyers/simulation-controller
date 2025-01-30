@@ -3,7 +3,7 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui::{CentralPanel, SidePanel};
+use egui::{CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle,
 };
@@ -104,6 +104,11 @@ impl MyApp {
                 .with_styles(&SettingsStyle::default().with_labels_always(true));
             ui.add(graph_widget);
         });
+        TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
+            if let Some(idx) = self.selected_node {
+                ui.label(format!("Selected node: {:?}", idx));
+            }
+        }); 
     }
 }
 
