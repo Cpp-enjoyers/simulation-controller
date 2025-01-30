@@ -3,7 +3,7 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui::{CentralPanel, SidePanel, TopBottomPanel};
+use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle,
 };
@@ -31,8 +31,8 @@ pub struct GraphNode {
 pub struct MyApp {
     network: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
-    input: String,
-    result: Vec<String>,
+    add_remove_input: String,
+    drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
 }
 
 impl MyApp {
@@ -42,6 +42,7 @@ impl MyApp {
         // clients: Vec<Client>,
         // servers: Vec<Server>,
         graph: StableGraph<WidgetType, (), Undirected>,
+        drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
     ) -> Self {
         let mut graph = Graph::from(&graph);
 
@@ -61,10 +62,33 @@ impl MyApp {
 
         MyApp {
             network: graph,
+            drones_channels,
             selected_node: Option::default(),
-            input: String::default(),
-            result: Vec::default(),
+            add_remove_input: String::default(),
         }
+    }
+
+    fn get_node_idx(&self, id: NodeId) -> NodeIndex {
+        for (node_idx, widget) in self.network.nodes_iter() {
+            match widget.payload() {
+                WidgetType::Drone(drone_widget) => {
+                    if drone_widget.get_id() == id {
+                        return node_idx;
+                    }
+                },
+                WidgetType::Client(client_widget) => {
+                    if client_widget.get_id() == id {
+                        return node_idx;
+                    }
+                },
+                WidgetType::Server(server_widget) => {
+                    if server_widget.get_id() == id {
+                        return node_idx;
+                    }
+                },
+            }
+        }
+        unreachable!("Se finisci qua rust ha la mamma puttana");
     }
 
     fn read_data(&mut self) {
@@ -107,6 +131,27 @@ impl MyApp {
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
             if let Some(idx) = self.selected_node {
                 ui.label(format!("Selected node: {:?}", idx));
+
+                // // Buttons to add/remove sender
+                ui.text_edit_singleline(&mut self.add_remove_input);
+                let add_btn = ui.add(Button::new("Add sender"));
+                if add_btn.clicked() {
+                    let neighbor_id = self.add_remove_input.parse().unwrap();
+                    let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                    let neighbor_send_ch = self.drones_channels[&neighbor_id].2.clone();
+                    let current_node = self.network.node_mut(idx).unwrap().payload_mut();
+                    match current_node {
+                        WidgetType::Drone(drone_widget) => {
+                            drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                        },
+                        WidgetType::Client(client_widget) => todo!(),
+                        WidgetType::Server(server_widget) => todo!(),
+                    }
+                    self.network.add_edge(idx, neighbor_g_idx, ());
+
+                }
+                // ui.text_edit_singleline(&mut self.add_remove_input);
+                // let remove_btn = ui.add(Button::new("Remove sender"));
             }
         }); 
     }
@@ -162,6 +207,8 @@ impl SimulationController {
                 dr.id,
                 self.drones_channels[&dr.id].0.clone(),
                 self.drones_channels[&dr.id].1.clone(),
+                self.drones_channels[&dr.id].2.clone(),
+                self.drones_channels[&dr.id].3.clone(),
             )));
             h.insert(dr.id, idx);
         }
@@ -224,10 +271,8 @@ impl SimulationController {
             Box::new(|cc| {
                 Ok(Box::new(MyApp::new(
                     cc,
-                    // self.drones.clone(),
-                    // self.clients.clone(),
-                    // self.servers.clone(),
                     graph,
+                    self.drones_channels.clone(),
                 )))
             }),
         )

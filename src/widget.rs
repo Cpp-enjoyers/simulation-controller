@@ -4,7 +4,7 @@ use egui::{Button, Color32, RichText, Ui};
 use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
-    network::NodeId,
+    network::NodeId, packet::Packet,
 };
 
 pub trait Drawable {
@@ -45,6 +45,8 @@ pub struct DroneWidget {
     id: NodeId,
     command_ch: Sender<DroneCommand>,
     event_ch: Receiver<DroneEvent>,
+    send_ch: Sender<Packet>,
+    recv_ch: Receiver<Packet>,
     pdr_input: String,
 }
 
@@ -53,14 +55,23 @@ impl DroneWidget {
         id: NodeId,
         command_ch: Sender<DroneCommand>,
         event_ch: Receiver<DroneEvent>,
+        send_ch: Sender<Packet>,
+        recv_ch: Receiver<Packet>,
     ) -> Self {
         Self {
             id,
             command_ch,
             event_ch,
+            send_ch,
+            recv_ch,
             pdr_input: String::default(),
         }
     }
+
+    pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
+        self.command_ch.send(DroneCommand::AddSender(neighbor_id, neighbor_ch));
+    }
+
 
     pub fn get_id(&self) -> NodeId {
         self.id
