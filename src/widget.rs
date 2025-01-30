@@ -193,7 +193,9 @@ impl Drawable for ClientWidget {
                     println!("Received files from server {}: {:?}", id, files);
                     self.list_of_files = files;
                 }
-                _ => {}
+                _ => {
+                    println!("Client event not handled: {:?}", event);
+                }
             }
         }
 
