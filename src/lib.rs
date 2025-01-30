@@ -47,7 +47,6 @@ impl MyApp {
                 WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
                 WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
                 WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
-                
             }
         }).collect();
         // Then iterate over the nodes again to set the labels
@@ -74,7 +73,6 @@ impl MyApp {
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
-                ui.label(format!("{:?}", idx));
                 let node = self.network.node_mut(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
