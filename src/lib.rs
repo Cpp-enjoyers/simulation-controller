@@ -140,12 +140,26 @@ impl MyApp {
                     let neighbor_g_idx = self.get_node_idx(neighbor_id);
                     let neighbor_send_ch = self.drones_channels[&neighbor_id].2.clone();
                     let current_node = self.network.node_mut(idx).unwrap().payload_mut();
+                    let current_node_id = match current_node {
+                        WidgetType::Drone(drone_widget) => drone_widget.get_id(),
+                        WidgetType::Client(client_widget) => client_widget.get_id(),
+                        WidgetType::Server(server_widget) => server_widget.get_id(),
+                    };
                     match current_node {
                         WidgetType::Drone(drone_widget) => {
                             drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
                         },
                         WidgetType::Client(client_widget) => todo!(),
                         WidgetType::Server(server_widget) => todo!(),
+                    }
+                    
+                    let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                    match other_node {
+                        WidgetType::Drone(other_drone_widget) => {
+                            other_drone_widget.add_neighbor(current_node_id, self.drones_channels[&current_node_id].2.clone());
+                        },
+                        WidgetType::Client(other_client_widget) => todo!(),
+                        WidgetType::Server(other_server_widget) => todo!(),
                     }
                     self.network.add_edge(idx, neighbor_g_idx, ());
 
