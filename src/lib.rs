@@ -22,16 +22,12 @@ use wg_2024::{
 use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, Widget, WidgetType};
 mod widget;
 
-#[derive(Clone)]
-pub struct GraphNode {
-    pub id: u8,
-    pub node_type: widget::NodeType,
-}
 
 pub struct MyApp {
     network: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
-    add_remove_input: String,
+    add_neighbor_input: String,
+    rm_neighbor_input: String,
     drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
     clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
     servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
@@ -70,7 +66,8 @@ impl MyApp {
             clients_channels,
             servers_channels,
             selected_node: Option::default(),
-            add_remove_input: String::default(),
+            add_neighbor_input: String::default(),
+            rm_neighbor_input: String::default(),
         }
     }
 
@@ -141,11 +138,11 @@ impl MyApp {
                 ui.horizontal(|ui| {
 
                     // // Buttons to add/remove sender
-                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.add_remove_input));
+                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.add_neighbor_input));
                     let add_btn = ui.add(Button::new("Add sender"));
                     if add_btn.clicked() {
                         
-                        let neighbor_id = self.add_remove_input.parse().unwrap();
+                        let neighbor_id = self.add_neighbor_input.parse().unwrap();
                         // get the NodeIndex of the neighbor and a clone of its Sender
                         let neighbor_g_idx = self.get_node_idx(neighbor_id);
                         let neighbor_send_ch = match self.network.node(neighbor_g_idx).unwrap().payload() {
@@ -193,10 +190,10 @@ impl MyApp {
                     }
                     
                     // Remove sender button
-                    ui.text_edit_singleline(&mut self.add_remove_input);
+                    ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.rm_neighbor_input));
                     let remove_btn = ui.add(Button::new("Remove sender"));
                     if remove_btn.clicked() {
-                        let neighbor_id = self.add_remove_input.parse().unwrap();
+                        let neighbor_id = self.rm_neighbor_input.parse().unwrap();
                         let neighbor_g_idx = self.get_node_idx(neighbor_id);
                         let current_node = self.network.node_mut(idx).unwrap().payload_mut();
                         let current_node_id = match current_node {
