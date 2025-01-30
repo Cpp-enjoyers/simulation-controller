@@ -45,6 +45,10 @@ impl DroneWidget {
             pdr_input: String::default(),
         }
     }
+
+    pub fn get_id(&self) -> NodeId {
+        self.id
+    }
 }
 
 impl Drawable for DroneWidget {
@@ -80,6 +84,10 @@ impl ClientWidget {
             id_input: String::default(),
             list_of_files: Vec::default(),
         }
+    }
+
+    pub fn get_id(&self) -> NodeId {
+        self.id
     }
 }
 
@@ -119,6 +127,20 @@ pub struct ServerWidget {
     pub id: NodeId,
     pub command_ch: Sender<ServerCommand>,
     pub event_ch: Receiver<ServerEvent>,
+}
+
+impl ServerWidget {
+    pub fn new(id: NodeId, command_ch: Sender<ServerCommand>, event_ch: Receiver<ServerEvent>) -> Self {
+        Self {
+            id,
+            command_ch,
+            event_ch,
+        }
+    }
+
+    pub fn get_id(&self) -> NodeId {
+        self.id
+    }
 }
 
 impl Drawable for ServerWidget {
