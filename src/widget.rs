@@ -4,7 +4,8 @@ use egui::{Button, Color32, RichText, Ui};
 use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
-    network::NodeId, packet::Packet,
+    network::NodeId,
+    packet::Packet,
 };
 
 pub trait Drawable {
@@ -69,11 +70,13 @@ impl DroneWidget {
     }
 
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
-        self.command_ch.send(DroneCommand::AddSender(neighbor_id, neighbor_ch));
+        self.command_ch
+            .send(DroneCommand::AddSender(neighbor_id, neighbor_ch));
     }
 
     pub fn remove_neighbor(&mut self, neighbor_id: u8) {
-        self.command_ch.send(DroneCommand::RemoveSender(neighbor_id));
+        self.command_ch
+            .send(DroneCommand::RemoveSender(neighbor_id));
     }
 
     pub fn get_id(&self) -> NodeId {
@@ -97,7 +100,8 @@ impl Drawable for DroneWidget {
         ui.separator();
         // Make the current drone crash
         ui.label("Crash the drone");
-        let red_btn = ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
+        let red_btn =
+            ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
         if red_btn.clicked() {
             self.command_ch.send(DroneCommand::Crash);
         }
@@ -131,11 +135,13 @@ impl ClientWidget {
     }
 
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
-        self.command_ch.send(ClientCommand::AddSender(neighbor_id, neighbor_ch));
+        self.command_ch
+            .send(ClientCommand::AddSender(neighbor_id, neighbor_ch));
     }
 
     pub fn remove_neighbor(&mut self, neighbor_id: u8) {
-        self.command_ch.send(ClientCommand::RemoveSender(neighbor_id));
+        self.command_ch
+            .send(ClientCommand::RemoveSender(neighbor_id));
     }
 
     pub fn get_id(&self) -> NodeId {
@@ -218,11 +224,13 @@ impl ServerWidget {
     }
 
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
-        self.command_ch.send(ServerCommand::AddSender(neighbor_id, neighbor_ch));
+        self.command_ch
+            .send(ServerCommand::AddSender(neighbor_id, neighbor_ch));
     }
 
     pub fn remove_neighbor(&mut self, neighbor_id: u8) {
-        self.command_ch.send(ServerCommand::RemoveSender(neighbor_id));
+        self.command_ch
+            .send(ServerCommand::RemoveSender(neighbor_id));
     }
 
     pub fn get_id(&self) -> NodeId {
