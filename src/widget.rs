@@ -1,7 +1,8 @@
 use crossbeam_channel::{Receiver, Sender};
 use wg_2024::{controller::{DroneCommand, DroneEvent}, network::NodeId};
-use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
-use egui::Ui;
+use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
+use egui::{Ui};
+use std::collections::HashMap;
 
 
 pub trait Drawable {
@@ -71,6 +72,7 @@ pub struct ClientWidget {
     id: NodeId,
     command_ch: Sender<ClientCommand>,
     event_ch: Receiver<ClientEvent>,
+    servers_types: HashMap<NodeId, ServerType>,
     id_input: String,
     list_of_files: Vec<String>,
 }
@@ -81,6 +83,7 @@ impl ClientWidget {
             id,
             command_ch,
             event_ch,
+            servers_types: HashMap::default(),
             id_input: String::default(),
             list_of_files: Vec::default(),
         }
@@ -95,6 +98,30 @@ impl Drawable for ClientWidget {
     fn draw(&mut self, ui: &mut Ui) {
         // Draw the client widget
         ui.label(format!("Client {}", self.id));
+
+        // Send command to ask for servers types
+        ui.label("Ask for Server types");
+        if ui.button("Send").clicked() {
+            let cmd = ClientCommand::AskServersTypes;
+            self.command_ch.send(cmd);
+        }
+
+        while let Ok(event) = self.event_ch.try_recv() {
+             match event {
+                ClientEvent::ServersTypes(types) => {
+                    self.servers_types = types;
+                }
+                _ => {}
+            }
+            
+        }
+
+        ui.label("Servers types:");
+        for (id, srv_type) in &self.servers_types {
+            ui.label(format!("Server {}: {:?}", id, srv_type));
+        }
+
+        ui.separator();
 
         // Send command to ask for files
         ui.label("Ask for Server files");
