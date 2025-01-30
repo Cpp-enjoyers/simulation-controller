@@ -5,7 +5,7 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
-    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsStyle,
+    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle
 };
 use petgraph::{
     graph,
@@ -131,7 +131,8 @@ impl MyApp {
                 .with_interactions(
                     &SettingsInteraction::default().with_node_selection_enabled(true),
                 )
-                .with_styles(&SettingsStyle::default().with_labels_always(true));
+                .with_styles(&SettingsStyle::default().with_labels_always(true))
+                .with_navigations(&SettingsNavigation::default().with_zoom_and_pan_enabled(true));
             ui.add(graph_widget);
         });
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
