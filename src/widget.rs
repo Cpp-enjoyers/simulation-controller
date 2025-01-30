@@ -127,6 +127,10 @@ impl ClientWidget {
         }
     }
 
+    pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
+        self.command_ch.send(ClientCommand::AddSender(neighbor_id, neighbor_ch));
+    }
+
     pub fn get_id(&self) -> NodeId {
         self.id
     }
@@ -204,6 +208,10 @@ impl ServerWidget {
             command_ch,
             event_ch,
         }
+    }
+
+    pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
+        self.command_ch.send(ServerCommand::AddSender(neighbor_id, neighbor_ch));
     }
 
     pub fn get_id(&self) -> NodeId {
