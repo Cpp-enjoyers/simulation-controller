@@ -5,7 +5,8 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
 use egui::{Button, CentralPanel, SidePanel, TextEdit, TopBottomPanel};
 use egui_graphs::{
-    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation, SettingsStyle
+    Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
+    SettingsStyle,
 };
 use petgraph::{
     graph,
@@ -17,20 +18,44 @@ use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
-    network::NodeId, packet::Packet,
+    network::NodeId,
+    packet::Packet,
 };
 use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, Widget, WidgetType};
 mod widget;
-
 
 pub struct MyApp {
     network: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
     add_neighbor_input: String,
     rm_neighbor_input: String,
-    drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
-    clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
-    servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
+    drones_channels: HashMap<
+        NodeId,
+        (
+            Sender<DroneCommand>,
+            Receiver<DroneEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
+    clients_channels: HashMap<
+        NodeId,
+        (
+            Sender<ClientCommand>,
+            Receiver<ClientEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
+    servers_channels: HashMap<
+        NodeId,
+        (
+            Sender<ServerCommand>,
+            Receiver<ServerEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
 }
 
 impl MyApp {
@@ -40,9 +65,33 @@ impl MyApp {
         // clients: Vec<Client>,
         // servers: Vec<Server>,
         graph: StableGraph<WidgetType, (), Undirected>,
-        drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
-        clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
-        servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
+        drones_channels: HashMap<
+            NodeId,
+            (
+                Sender<DroneCommand>,
+                Receiver<DroneEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
+        clients_channels: HashMap<
+            NodeId,
+            (
+                Sender<ClientCommand>,
+                Receiver<ClientEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
+        servers_channels: HashMap<
+            NodeId,
+            (
+                Sender<ServerCommand>,
+                Receiver<ServerEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
     ) -> Self {
         let mut graph = Graph::from(&graph);
 
@@ -78,17 +127,17 @@ impl MyApp {
                     if drone_widget.get_id() == id {
                         return node_idx;
                     }
-                },
+                }
                 WidgetType::Client(client_widget) => {
                     if client_widget.get_id() == id {
                         return node_idx;
                     }
-                },
+                }
                 WidgetType::Server(server_widget) => {
                     if server_widget.get_id() == id {
                         return node_idx;
                     }
-                },
+                }
             }
         }
         unreachable!("Se finisci qua rust ha la mamma puttana");
@@ -136,107 +185,119 @@ impl MyApp {
             if let Some(idx) = self.selected_node {
                 ui.label(format!("Selected node: {:?}", idx));
                 ui.horizontal(|ui| {
-
-                    ui.vertical_centered_justified(|ui| {
-
-                        // // Buttons to add/remove sender
-                        // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
-                        ui.text_edit_singleline(&mut self.add_neighbor_input);
-                        let add_btn = ui.add(Button::new("Add sender"));
-                        if add_btn.clicked() {
-                            
-                            let neighbor_id = self.add_neighbor_input.parse().unwrap();
-                            // get the NodeIndex of the neighbor and a clone of its Sender
-                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
-                            let neighbor_send_ch = match self.network.node(neighbor_g_idx).unwrap().payload() {
-                                WidgetType::Drone(drone_widget) => self.drones_channels[&neighbor_id].2.clone(),
-                                WidgetType::Client(client_widget) => self.clients_channels[&neighbor_id].2.clone(),
-                                WidgetType::Server(server_widget) => self.servers_channels[&neighbor_id].2.clone(),
-                            };
-                            
-                            let current_node = self.network.node_mut(idx).unwrap().payload_mut();
-                            // get the id of the current and a clone of its Sender
-                            let (current_node_id, current_send_ch) = match current_node {
-                                WidgetType::Drone(drone_widget) => (drone_widget.get_id(), self.drones_channels[&drone_widget.get_id()].2.clone()),
-                                WidgetType::Client(client_widget) => (client_widget.get_id(), self.clients_channels[&client_widget.get_id()].2.clone()),
-                                WidgetType::Server(server_widget) => (server_widget.get_id(), self.servers_channels[&server_widget.get_id()].2.clone()),
-                            };
-                            
-                            match current_node {
+                    // Buttons to add/remove sender
+                    // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
+                    ui.text_edit_singleline(&mut self.add_neighbor_input);
+                    let add_btn = ui.add(Button::new("Add sender"));
+                    if add_btn.clicked() {
+                        let neighbor_id = self.add_neighbor_input.parse().unwrap();
+                        // get the NodeIndex of the neighbor and a clone of its Sender
+                        let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                        let neighbor_send_ch =
+                            match self.network.node(neighbor_g_idx).unwrap().payload() {
                                 WidgetType::Drone(drone_widget) => {
-                                    drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                },
-                                WidgetType::Client(client_widget) => {
-                                    client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                },
-                                WidgetType::Server(server_widget) => {
-                                    server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                },
-                            }
-                            
-                            let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
-                            match other_node {
-                                WidgetType::Drone(other_drone_widget) => {
-                                    println!("drones_channels: {:?}", self.drones_channels);
-                                    println!("current_node_id: {:?}", current_node_id);
-                                    other_drone_widget.add_neighbor(current_node_id, current_send_ch);
-                                },
-                                WidgetType::Client(other_client_widget) => {
-                                    other_client_widget.add_neighbor(current_node_id, current_send_ch);
-                                },
-                                WidgetType::Server(other_server_widget) => {
-                                    other_server_widget.add_neighbor(current_node_id, current_send_ch);
-                                },
-                            }
-                            self.network.add_edge(idx, neighbor_g_idx, ());
-                            
-                        }
-                        
-                        });
-                        ui.add_space(15.0);
-                        ui.vertical_centered_justified(|ui| {
-                            // Remove sender button
-                            ui.add_sized([40.0, 20.0], TextEdit::singleline(&mut self.rm_neighbor_input));
-                            let remove_btn = ui.add(Button::new("Remove sender"));
-                            if remove_btn.clicked() {
-                                let neighbor_id = self.rm_neighbor_input.parse().unwrap();
-                                let neighbor_g_idx = self.get_node_idx(neighbor_id);
-                                let current_node = self.network.node_mut(idx).unwrap().payload_mut();
-                                let current_node_id = match current_node {
-                                    WidgetType::Drone(drone_widget) =>  {
-                                        drone_widget.remove_neighbor(neighbor_id);
-                                        drone_widget.get_id()
-                                    },
-                                    WidgetType::Client(client_widget) => {
-                                        client_widget.remove_neighbor(neighbor_id);
-                                        client_widget.get_id()
-                                    },
-                                    WidgetType::Server(server_widget) => {
-                                        server_widget.remove_neighbor(neighbor_id);
-                                        server_widget.get_id()
-                                    },
-                                    
-                                };
-                                
-                                let other_node = self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
-                                match other_node {
-                                    WidgetType::Drone(other_drone_widget) => {
-                                        other_drone_widget.remove_neighbor(current_node_id);
-                                    },
-                                    WidgetType::Client(other_client_widget) => {
-                                        other_client_widget.remove_neighbor(current_node_id);
-                                    },
-                                    WidgetType::Server(other_server_widget) => {
-                                        other_server_widget.remove_neighbor(current_node_id);
-                                    },
+                                    self.drones_channels[&neighbor_id].2.clone()
                                 }
-                                
-                                self.network.remove_edges_between(idx, neighbor_g_idx);
+                                WidgetType::Client(client_widget) => {
+                                    self.clients_channels[&neighbor_id].2.clone()
+                                }
+                                WidgetType::Server(server_widget) => {
+                                    self.servers_channels[&neighbor_id].2.clone()
+                                }
+                            };
+
+                        let current_node = self.network.node_mut(idx).unwrap().payload_mut();
+                        // get the id of the current and a clone of its Sender
+                        let (current_node_id, current_send_ch) = match current_node {
+                            WidgetType::Drone(drone_widget) => (
+                                drone_widget.get_id(),
+                                self.drones_channels[&drone_widget.get_id()].2.clone(),
+                            ),
+                            WidgetType::Client(client_widget) => (
+                                client_widget.get_id(),
+                                self.clients_channels[&client_widget.get_id()].2.clone(),
+                            ),
+                            WidgetType::Server(server_widget) => (
+                                server_widget.get_id(),
+                                self.servers_channels[&server_widget.get_id()].2.clone(),
+                            ),
+                        };
+
+                        match current_node {
+                            WidgetType::Drone(drone_widget) => {
+                                drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
                             }
-                        });
+                            WidgetType::Client(client_widget) => {
+                                client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                            }
+                            WidgetType::Server(server_widget) => {
+                                server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                            }
+                        }
+
+                        let other_node =
+                            self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                        match other_node {
+                            WidgetType::Drone(other_drone_widget) => {
+                                println!("drones_channels: {:?}", self.drones_channels);
+                                println!("current_node_id: {:?}", current_node_id);
+                                other_drone_widget.add_neighbor(current_node_id, current_send_ch);
+                            }
+                            WidgetType::Client(other_client_widget) => {
+                                other_client_widget.add_neighbor(current_node_id, current_send_ch);
+                            }
+                            WidgetType::Server(other_server_widget) => {
+                                other_server_widget.add_neighbor(current_node_id, current_send_ch);
+                            }
+                        }
+                        self.network.add_edge(idx, neighbor_g_idx, ());
+                    }
+
+                    ui.add_space(15.0);
+                    // Remove sender button
+                    ui.add_sized(
+                        [40.0, 20.0],
+                        TextEdit::singleline(&mut self.rm_neighbor_input),
+                    );
+                    let remove_btn = ui.add(Button::new("Remove sender"));
+                    if remove_btn.clicked() {
+                        let neighbor_id = self.rm_neighbor_input.parse().unwrap();
+                        let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                        let current_node = self.network.node_mut(idx).unwrap().payload_mut();
+                        let current_node_id = match current_node {
+                            WidgetType::Drone(drone_widget) => {
+                                drone_widget.remove_neighbor(neighbor_id);
+                                drone_widget.get_id()
+                            }
+                            WidgetType::Client(client_widget) => {
+                                client_widget.remove_neighbor(neighbor_id);
+                                client_widget.get_id()
+                            }
+                            WidgetType::Server(server_widget) => {
+                                server_widget.remove_neighbor(neighbor_id);
+                                server_widget.get_id()
+                            }
+                        };
+
+                        let other_node =
+                            self.network.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                        match other_node {
+                            WidgetType::Drone(other_drone_widget) => {
+                                other_drone_widget.remove_neighbor(current_node_id);
+                            }
+                            WidgetType::Client(other_client_widget) => {
+                                other_client_widget.remove_neighbor(current_node_id);
+                            }
+                            WidgetType::Server(other_server_widget) => {
+                                other_server_widget.remove_neighbor(current_node_id);
+                            }
+                        }
+
+                        self.network.remove_edges_between(idx, neighbor_g_idx);
+                    }
                 });
             }
-        }); 
+        });
     }
 }
 
@@ -247,13 +308,36 @@ impl eframe::App for MyApp {
     }
 }
 
-
 #[derive(Debug)]
 pub struct SimulationController {
     id: NodeId,
-    drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
-    clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
-    servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
+    drones_channels: HashMap<
+        NodeId,
+        (
+            Sender<DroneCommand>,
+            Receiver<DroneEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
+    clients_channels: HashMap<
+        NodeId,
+        (
+            Sender<ClientCommand>,
+            Receiver<ClientEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
+    servers_channels: HashMap<
+        NodeId,
+        (
+            Sender<ServerCommand>,
+            Receiver<ServerEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
@@ -262,9 +346,33 @@ pub struct SimulationController {
 impl SimulationController {
     pub fn new(
         id: NodeId,
-        drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
-        clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
-        servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
+        drones_channels: HashMap<
+            NodeId,
+            (
+                Sender<DroneCommand>,
+                Receiver<DroneEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
+        clients_channels: HashMap<
+            NodeId,
+            (
+                Sender<ClientCommand>,
+                Receiver<ClientEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
+        servers_channels: HashMap<
+            NodeId,
+            (
+                Sender<ServerCommand>,
+                Receiver<ServerEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
         drones: Vec<Drone>,
         clients: Vec<Client>,
         servers: Vec<Server>,
