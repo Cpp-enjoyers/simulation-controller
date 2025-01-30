@@ -40,6 +40,8 @@ impl MyApp {
         graph: StableGraph<WidgetType, (), Undirected>,
     ) -> Self {
         let mut graph = Graph::from(&graph);
+
+        // Since graph library is beatiful, first iterate over the nodes to construct the labels for each node
         let temp: Vec<(NodeIndex, String)> = graph.nodes_iter().map(|(idx, node)| {
             match node.payload() {
                 WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
@@ -48,9 +50,11 @@ impl MyApp {
                 
             }
         }).collect();
+        // Then iterate over the nodes again to set the labels
         for (idx, label) in temp {
             graph.node_mut(idx).unwrap().set_label(label);
         }
+
         MyApp {
             network: graph,
             selected_node: Option::default(),
