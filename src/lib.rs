@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
-    network::NodeId,
+    network::NodeId, packet::Packet,
 };
 use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, Widget, WidgetType};
 mod widget;
@@ -119,75 +119,13 @@ impl eframe::App for MyApp {
     }
 }
 
-// fn generate_graph(v: Vec<Drone>, cls: Vec<Client>, srvs: Vec<Server>) -> StableGraph<GraphNode, (), Undirected> {
-//     let mut g = StableUnGraph::default();
-//     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
-//     let mut edges: HashSet<(u8, u8)> = HashSet::new();
-
-//     for d in &v {
-//         let idx = g.add_node(GraphNode {
-//             id: d.id,
-//             node_type: widget::NodeType::Drone {
-//                 command_ch: d.command_ch.clone(),
-//                 event_ch: d.event_ch.clone(),
-//             },
-//         });
-//         h.insert(d.id, idx);
-//     }
-
-//     for c in &cls {
-//         let idx = g.add_node(GraphNode {
-//             id: c.id,
-//             node_type: widget::NodeType::Client,
-//         });
-//         h.insert(c.id, idx);
-//     }
-
-//     for s in &srvs {
-//         let idx = g.add_node(GraphNode {
-//             id: s.id,
-//             node_type: widget::NodeType::Server,
-//         });
-//         h.insert(s.id, idx);
-//     }
-
-//     // Add edges
-//     for d in &v {
-//         for n in &d.connected_node_ids {
-//             if !edges.contains(&(d.id, *n)) && !edges.contains(&(*n, d.id)) {
-//                 g.add_edge(h[&d.id], h[n], ());
-//                 edges.insert((d.id, *n));
-//             }
-//         }
-//     }
-
-//     for c in &cls {
-//         for n in &c.connected_drone_ids {
-//             if !edges.contains(&(c.id, *n)) && !edges.contains(&(*n, c.id)) {
-//                 g.add_edge(h[&c.id], h[n], ());
-//                 edges.insert((c.id, *n));
-//             }
-//         }
-//     }
-
-//     for s in &srvs {
-//         for n in &s.connected_drone_ids {
-//             if !edges.contains(&(s.id, *n)) && !edges.contains(&(*n, s.id)) {
-//                 g.add_edge(h[&s.id], h[n], ());
-//                 edges.insert((s.id, *n));
-//             }
-//         }
-//     }
-
-//     g
-// }
 
 #[derive(Debug)]
 pub struct SimulationController {
     id: NodeId,
-    drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>)>,
-    clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
-    servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
+    drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
+    clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
+    servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
@@ -196,9 +134,9 @@ pub struct SimulationController {
 impl SimulationController {
     pub fn new(
         id: NodeId,
-        drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>)>,
-        clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>)>,
-        servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>)>,
+        drones_channels: HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>,
+        clients_channels: HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
+        servers_channels: HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>,
         drones: Vec<Drone>,
         clients: Vec<Client>,
         servers: Vec<Server>,
