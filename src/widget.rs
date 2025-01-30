@@ -1,7 +1,7 @@
 use crossbeam_channel::{Receiver, Sender};
 use wg_2024::{controller::{DroneCommand, DroneEvent}, network::NodeId};
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
-use egui::{Ui};
+use egui::{Button, Ui};
 use std::collections::HashMap;
 
 
@@ -63,6 +63,13 @@ impl Drawable for DroneWidget {
         if ui.button("Send").clicked() {
             let cmd = DroneCommand::SetPacketDropRate(self.pdr_input.parse().unwrap());
             self.command_ch.send(cmd);
+        }
+
+        ui.separator();
+        // Make the current drone crash
+        let red_btn = ui.add(Button::new("Crash").fill(egui::Color32::RED));
+        if red_btn.clicked() {
+            self.command_ch.send(DroneCommand::Crash);
         }
     }
 }
