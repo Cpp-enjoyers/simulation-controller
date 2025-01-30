@@ -1,9 +1,11 @@
-use crossbeam_channel::{Receiver, Sender};
-use wg_2024::{controller::{DroneCommand, DroneEvent}, network::NodeId};
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
-use egui::{Button, Ui};
+use crossbeam_channel::{Receiver, Sender};
+use egui::{Button, Color32, RichText, Ui};
 use std::collections::HashMap;
-
+use wg_2024::{
+    controller::{DroneCommand, DroneEvent},
+    network::NodeId,
+};
 
 pub trait Drawable {
     fn draw(&mut self, ui: &mut Ui);
@@ -17,9 +19,18 @@ pub struct Widget {
 
 #[derive(Clone)]
 pub enum NodeType {
-    Drone { command_ch: Sender<DroneCommand>, event_ch: Receiver<DroneEvent> },
-    Client { command_ch: Sender<ClientCommand>, event_ch: Receiver<ClientEvent> },
-    Server { command_ch: Sender<ServerCommand>, event_ch: Receiver<ServerEvent> },
+    Drone {
+        command_ch: Sender<DroneCommand>,
+        event_ch: Receiver<DroneEvent>,
+    },
+    Client {
+        command_ch: Sender<ClientCommand>,
+        event_ch: Receiver<ClientEvent>,
+    },
+    Server {
+        command_ch: Sender<ServerCommand>,
+        event_ch: Receiver<ServerEvent>,
+    },
 }
 
 #[derive(Clone)]
@@ -38,7 +49,11 @@ pub struct DroneWidget {
 }
 
 impl DroneWidget {
-    pub fn new(id: NodeId, command_ch: Sender<DroneCommand>, event_ch: Receiver<DroneEvent>) -> Self {
+    pub fn new(
+        id: NodeId,
+        command_ch: Sender<DroneCommand>,
+        event_ch: Receiver<DroneEvent>,
+    ) -> Self {
         Self {
             id,
             command_ch,
@@ -67,7 +82,8 @@ impl Drawable for DroneWidget {
 
         ui.separator();
         // Make the current drone crash
-        let red_btn = ui.add(Button::new("Crash").fill(egui::Color32::RED));
+        ui.label("Crash the drone");
+        let red_btn = ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
         if red_btn.clicked() {
             self.command_ch.send(DroneCommand::Crash);
         }
@@ -85,7 +101,11 @@ pub struct ClientWidget {
 }
 
 impl ClientWidget {
-    pub fn new(id: NodeId, command_ch: Sender<ClientCommand>, event_ch: Receiver<ClientEvent>) -> Self {
+    pub fn new(
+        id: NodeId,
+        command_ch: Sender<ClientCommand>,
+        event_ch: Receiver<ClientEvent>,
+    ) -> Self {
         Self {
             id,
             command_ch,
@@ -114,13 +134,12 @@ impl Drawable for ClientWidget {
         }
 
         while let Ok(event) = self.event_ch.try_recv() {
-             match event {
+            match event {
                 ClientEvent::ServersTypes(types) => {
                     self.servers_types = types;
                 }
                 _ => {}
             }
-            
         }
 
         ui.label("Servers types:");
@@ -164,7 +183,11 @@ pub struct ServerWidget {
 }
 
 impl ServerWidget {
-    pub fn new(id: NodeId, command_ch: Sender<ServerCommand>, event_ch: Receiver<ServerEvent>) -> Self {
+    pub fn new(
+        id: NodeId,
+        command_ch: Sender<ServerCommand>,
+        event_ch: Receiver<ServerEvent>,
+    ) -> Self {
         Self {
             id,
             command_ch,
