@@ -1,38 +1,15 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
 use egui::{Button, Color32, Label, RichText, Sense, Ui};
-use std::{collections::HashMap, env, fs::File, io::Write, path::Path};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
     packet::Packet,
 };
-use tempfile::{tempfile, NamedTempFile};
 
 pub trait Drawable {
     fn draw(&mut self, ui: &mut Ui);
-}
-
-#[derive(Clone)]
-pub struct Widget {
-    id: NodeId,
-    node_type: NodeType,
-}
-
-#[derive(Clone)]
-pub enum NodeType {
-    Drone {
-        command_ch: Sender<DroneCommand>,
-        event_ch: Receiver<DroneEvent>,
-    },
-    Client {
-        command_ch: Sender<ClientCommand>,
-        event_ch: Receiver<ClientEvent>,
-    },
-    Server {
-        command_ch: Sender<ServerCommand>,
-        event_ch: Receiver<ServerEvent>,
-    },
 }
 
 #[derive(Clone)]

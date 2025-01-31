@@ -3,15 +3,13 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui::{Button, CentralPanel, SidePanel, TextEdit, TopBottomPanel};
+use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
 };
 use petgraph::{
-    graph,
     stable_graph::{NodeIndex, StableGraph, StableUnGraph},
-    visit::NodeRef,
     Undirected,
 };
 use std::collections::{HashMap, HashSet};
@@ -21,7 +19,7 @@ use wg_2024::{
     network::NodeId,
     packet::Packet,
 };
-use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, Widget, WidgetType};
+use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, WidgetType};
 mod widget;
 
 pub struct MyApp {
