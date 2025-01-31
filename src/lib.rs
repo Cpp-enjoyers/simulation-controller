@@ -544,6 +544,7 @@ impl eframe::App for SimulationController {
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
+                println!("Selected node: {:?}", idx);
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
                 println!("Node: {:?}", node);
                 match node {
