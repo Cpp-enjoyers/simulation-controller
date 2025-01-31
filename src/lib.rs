@@ -476,7 +476,7 @@ impl SimulationController {
         let mut h: HashMap<u8, NodeIndex> = HashMap::new();
         let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
-
+        println!("Widgets: {:?}", self.widgets);
         for widget in &self.widgets {
             let idx = g.add_node(widget.1.clone());
             h.insert(*widget.0, idx);
