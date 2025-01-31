@@ -155,8 +155,6 @@ impl ClientWidget {
             ClientEvent::Shortcut(packet) => {},
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, id) => {
-                // Strip the path from the files
-                // let stripped_files: Vec<String> = files.iter().map(|s| s.split("/").last().unwrap().to_string()).collect();
                 self.list_of_files.insert(id, files);
             },
             ClientEvent::FileFromClient(file_content, server_id) => {
@@ -205,13 +203,11 @@ impl Drawable for ClientWidget {
 
         ui.separator();
         ui.label("Received files:");
-        // to display the files i can use label + sense trait to add the click event
-        // when a file is clicked is should send a command to client to request the file
         for (server_id, server_files) in &self.list_of_files {
             ui.label(format!("Server {}: ", server_id));
             for file in server_files {
-                // ui.label(file);
-                if ui.add(Label::new(file).sense(Sense::click())).clicked() {
+                let file_name = file.split("/").last().unwrap().to_string();
+                if ui.add(Label::new(file_name).sense(Sense::click())).clicked() {
                     let cmd = ClientCommand::RequestFile(file.to_string(), *server_id);
                     self.command_ch.send(cmd);
                 }
