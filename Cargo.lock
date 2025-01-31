@@ -2534,6 +2534,7 @@ dependencies = [
  "egui_graphs",
  "petgraph",
  "tempfile",
+ "webbrowser",
  "wg_2024",
 ]
 

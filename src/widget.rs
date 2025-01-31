@@ -165,7 +165,10 @@ impl ClientWidget {
                 // let mut file = File::create(tmp_file)?;
                 let mut file = NamedTempFile::new().unwrap();
                 writeln!(file, "{file_content}");
-                println!("Path: {:?}", file.path());
+
+                if webbrowser::open(&format!("file:///{}", file.path().to_str().unwrap())).is_err() {
+                    println!("Error opening file");
+                }
             },
             ClientEvent::ServersTypes(srv_types) => {
                 self.servers_types = srv_types;
