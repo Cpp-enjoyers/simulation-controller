@@ -21,6 +21,7 @@ use wg_2024::{
 use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, WidgetType};
 mod widget;
 
+#[derive(Clone, Debug)]
 pub enum Events {
     DroneEvent(DroneEvent),
     ClientEvent(ClientEvent),
@@ -559,6 +560,7 @@ impl SimulationController {
             }
         }
 
+        println!("Event queue: {:?}", event_queue);
         for (id, event) in event_queue {
             match event {
                 Events::DroneEvent(event) => self.handle_drone_event(&id, event),
