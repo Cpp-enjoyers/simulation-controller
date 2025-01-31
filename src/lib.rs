@@ -99,7 +99,7 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
     w
 }
 
-fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> StableGraph<WidgetType, (), Undirected> {
+fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
@@ -137,7 +137,22 @@ fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, client
         }
     }
 
-    g
+    let mut eg_graph = Graph::from(&g);
+    // Since graph library is beatiful, first iterate over the nodes to construct the labels for each node
+    let temp: Vec<(NodeIndex, String)> = eg_graph
+        .nodes_iter()
+        .map(|(idx, node)| match node.payload() {
+            WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
+            WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
+            WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
+        })
+        .collect();
+    // Then iterate over the nodes again to set the labels
+    for (idx, label) in temp {
+        eg_graph.node_mut(idx).unwrap().set_label(label);
+    }
+    
+    eg_graph
 }
 
 // pub struct MyApp {
@@ -511,7 +526,7 @@ impl SimulationController {
             clients,
             servers,
             widgets,
-            graph: Graph::from(&graph),
+            graph,
         }
     }
 
