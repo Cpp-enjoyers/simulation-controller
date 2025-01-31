@@ -162,11 +162,15 @@ impl ClientWidget {
                 println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
                 let folder = Path::new("tmp");
 
+                if !folder.exists() {
+                    std::fs::create_dir_all(folder).unwrap();
+                }
+
                 let file_path = folder.join("index.html");
-                let mut file = File::create(file_path.clone()).unwrap();
+                let mut file = File::create(&file_path).unwrap();
                 file.write_all(file_content.as_bytes()).unwrap();
 
-                if webbrowser::open(&file_path.to_str().unwrap()).is_err() {
+                if webbrowser::open(file_path.to_str().unwrap()).is_err() {
                     println!("Failed to open the file in the browser");
                 }
             },
