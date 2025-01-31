@@ -151,7 +151,7 @@ fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, client
     for (idx, label) in temp {
         eg_graph.node_mut(idx).unwrap().set_label(label);
     }
-    
+
     eg_graph
 }
 
@@ -479,6 +479,7 @@ pub struct SimulationController {
     servers: Vec<Server>,
     widgets: HashMap<NodeId, WidgetType>,
     graph: Graph<WidgetType, (), Undirected>,
+    selected_node: Option<NodeIndex>,
 }
 
 impl SimulationController {
@@ -527,6 +528,7 @@ impl SimulationController {
             servers,
             widgets,
             graph,
+            selected_node: Option::default(),
         }
     }
 
@@ -539,6 +541,17 @@ impl SimulationController {
 
 impl eframe::App for SimulationController {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        SidePanel::right("Panel").show(ctx, |ui| {
+            ui.label("Selected node:");
+            if let Some(idx) = self.selected_node {
+                let node = self.graph.node_mut(idx).unwrap().payload_mut();
+                match node {
+                    WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
+                    WidgetType::Client(client_widget) => client_widget.draw(ui),
+                    WidgetType::Server(server_widget) => server_widget.draw(ui),
+                }
+            }
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             let graph_widget: &mut GraphView<
                 '_,
