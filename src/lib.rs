@@ -539,6 +539,28 @@ impl SimulationController {
         }
     }
 
+    fn get_node_idx(&self, id: NodeId) -> NodeIndex {
+        for (node_idx, widget) in self.graph.nodes_iter() {
+            match widget.payload() {
+                WidgetType::Drone(drone_widget) => {
+                    if drone_widget.get_id() == id {
+                        return node_idx;
+                    }
+                }
+                WidgetType::Client(client_widget) => {
+                    if client_widget.get_id() == id {
+                        return node_idx;
+                    }
+                }
+                WidgetType::Server(server_widget) => {
+                    if server_widget.get_id() == id {
+                        return node_idx;
+                    }
+                }
+            }
+        }
+        unreachable!("Se finisci qua rust ha la mamma puttana");
+    }
 
     fn handle_event(&mut self) {
         let mut event_queue: Vec<(NodeId, Events)> = Vec::new();
@@ -589,7 +611,8 @@ impl SimulationController {
             },
             ClientEvent::FileFromClient(items, _) => {},
             ClientEvent::ServersTypes(types) => {
-                let client = self.widgets.get_mut(client_id).unwrap();
+                let client_idx = self.get_node_idx(*client_id);
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
                     WidgetType::Client(client_widget) => {
                         client_widget.add_server_type(types);
