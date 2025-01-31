@@ -1,7 +1,7 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
 use egui::{Button, Color32, Label, RichText, Sense, Ui};
-use std::{collections::HashMap, env, fs::File, io::Write};
+use std::{collections::HashMap, env, fs::File, io::Write, path::Path};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
@@ -160,14 +160,14 @@ impl ClientWidget {
             },
             ClientEvent::FileFromClient(file_content, server_id) => {
                 println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
-                // let mut tmp_file = env::temp_dir();
-                // tmp_file.push("index.html");
-                // let mut file = File::create(tmp_file)?;
-                let mut file = NamedTempFile::new().unwrap();
-                writeln!(file, "{file_content}");
+                let folder = Path::new("./tmp");
 
-                if webbrowser::open(&format!("file:///{}", file.path().to_str().unwrap())).is_err() {
-                    println!("Error opening file");
+                let file_path = folder.join("index.html");
+                let mut file = File::create(file_path.clone()).unwrap();
+                file.write_all(file_content.as_bytes()).unwrap();
+
+                if webbrowser::open(&file_path.to_str().unwrap()).is_err() {
+                    println!("Failed to open the file in the browser");
                 }
             },
             ClientEvent::ServersTypes(srv_types) => {
