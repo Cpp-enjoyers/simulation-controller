@@ -156,8 +156,8 @@ impl ClientWidget {
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, id) => {
                 // Strip the path from the files
-                let stripped_files: Vec<String> = files.iter().map(|s| s.split("/").last().unwrap().to_string()).collect();
-                self.list_of_files.insert(id, stripped_files);
+                // let stripped_files: Vec<String> = files.iter().map(|s| s.split("/").last().unwrap().to_string()).collect();
+                self.list_of_files.insert(id, files);
             },
             ClientEvent::FileFromClient(file_content, server_id) => {
                 println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
