@@ -3,14 +3,13 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{egui, CreationContext};
-use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
+use egui::{accesskit::Node, Button, CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
 };
 use petgraph::{
-    stable_graph::{NodeIndex, StableGraph, StableUnGraph},
-    Undirected,
+    graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected
 };
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
@@ -67,6 +66,37 @@ pub fn run(id: NodeId,
                 servers,
             ))))
         ).expect("Failed to run simulation controller");
+}
+
+pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>),>,
+                        c: &HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
+                        s: &HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>)
+                        -> HashMap<NodeId, WidgetType>{
+    let mut w = HashMap::new();
+    for (id, channels) in d {
+        w.insert(*id, WidgetType::Drone(DroneWidget::new(
+            *id,
+            channels.0.clone(),
+            channels.1.clone(),
+        )));
+    }
+
+    for (id, channels) in c {
+        w.insert(*id, WidgetType::Client(ClientWidget::new(
+            *id,
+            channels.0.clone(),
+            channels.1.clone(),
+        )));
+    }
+
+    for (id, channels) in s {
+        w.insert(*id, WidgetType::Server(ServerWidget {
+            id: *id,
+            command_ch: channels.0.clone(),
+            event_ch: channels.1.clone(),
+        }));
+    }
+    w
 }
 
 // pub struct MyApp {
@@ -391,6 +421,7 @@ pub struct SimulationController {
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
+    widgets: HashMap<NodeId, WidgetType>,
 }
 
 impl SimulationController {
@@ -427,6 +458,7 @@ impl SimulationController {
         clients: Vec<Client>,
         servers: Vec<Server>,
     ) -> Self {
+        let widgets = generate_widgets(&drones_channels, &clients_channels, &servers_channels);
         SimulationController {
             id,
             drones_channels,
@@ -435,6 +467,7 @@ impl SimulationController {
             drones,
             clients,
             servers,
+            widgets,
         }
     }
 
@@ -443,35 +476,41 @@ impl SimulationController {
         let mut h: HashMap<u8, NodeIndex> = HashMap::new();
         let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
-        for dr in &self.drones {
-            let idx = g.add_node(WidgetType::Drone(DroneWidget::new(
-                dr.id,
-                self.drones_channels[&dr.id].0.clone(),
-                self.drones_channels[&dr.id].1.clone(),
-                // TODO: maybe useless
-                self.drones_channels[&dr.id].2.clone(),
-                self.drones_channels[&dr.id].3.clone(),
-            )));
-            h.insert(dr.id, idx);
+
+        for widget in &self.widgets {
+            let idx = g.add_node(widget.1.clone());
+            h.insert(*widget.0, idx);
         }
 
-        for cl in &self.clients {
-            let idx = g.add_node(WidgetType::Client(ClientWidget::new(
-                cl.id,
-                self.clients_channels[&cl.id].0.clone(),
-                self.clients_channels[&cl.id].1.clone(),
-            )));
-            h.insert(cl.id, idx);
-        }
+        // for dr in &self.drones {
+        //     let idx = g.add_node(WidgetType::Drone(DroneWidget::new(
+        //         dr.id,
+        //         self.drones_channels[&dr.id].0.clone(),
+        //         self.drones_channels[&dr.id].1.clone(),
+        //         // TODO: maybe useless
+        //         // self.drones_channels[&dr.id].2.clone(),
+        //         // self.drones_channels[&dr.id].3.clone(),
+        //     )));
+        //     h.insert(dr.id, idx);
+        // }
 
-        for srv in &self.servers {
-            let idx = g.add_node(WidgetType::Server(ServerWidget {
-                id: srv.id,
-                command_ch: self.servers_channels[&srv.id].0.clone(),
-                event_ch: self.servers_channels[&srv.id].1.clone(),
-            }));
-            h.insert(srv.id, idx);
-        }
+        // for cl in &self.clients {
+        //     let idx = g.add_node(WidgetType::Client(ClientWidget::new(
+        //         cl.id,
+        //         self.clients_channels[&cl.id].0.clone(),
+        //         self.clients_channels[&cl.id].1.clone(),
+        //     )));
+        //     h.insert(cl.id, idx);
+        // }
+
+        // for srv in &self.servers {
+        //     let idx = g.add_node(WidgetType::Server(ServerWidget {
+        //         id: srv.id,
+        //         command_ch: self.servers_channels[&srv.id].0.clone(),
+        //         event_ch: self.servers_channels[&srv.id].1.clone(),
+        //     }));
+        //     h.insert(srv.id, idx);
+        // }
 
         // Add edges
         for dr in &self.drones {
@@ -504,12 +543,34 @@ impl SimulationController {
         g
     }
 
+    fn handle_event(&self) {
+
+    }
+
 }
 
 impl eframe::App for SimulationController {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("test scl");
+            let mut graph = Graph::from(&self.generate_graph());
+            let graph_widget: &mut GraphView<
+                '_,
+                WidgetType,
+                (),
+                petgraph::Undirected,
+                u32,
+                egui_graphs::DefaultNodeShape,
+                egui_graphs::DefaultEdgeShape,
+                LayoutStateRandom,
+                LayoutRandom,
+            > = &mut GraphView::new(&mut graph)
+                .with_interactions(
+                    &SettingsInteraction::default().with_node_selection_enabled(true),
+                )
+                .with_styles(&SettingsStyle::default().with_labels_always(true))
+                .with_navigations(&SettingsNavigation::default().with_zoom_and_pan_enabled(true));
+            ui.add(graph_widget);       
+
         });
     }
 }

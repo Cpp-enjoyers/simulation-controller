@@ -12,20 +12,20 @@ pub trait Drawable {
     fn draw(&mut self, ui: &mut Ui);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum WidgetType {
     Drone(DroneWidget),
     Client(ClientWidget),
     Server(ServerWidget),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DroneWidget {
     id: NodeId,
     command_ch: Sender<DroneCommand>,
     event_ch: Receiver<DroneEvent>,
-    send_ch: Sender<Packet>,
-    recv_ch: Receiver<Packet>,
+    // send_ch: Sender<Packet>,
+    // recv_ch: Receiver<Packet>,
     pdr_input: String,
 }
 
@@ -34,15 +34,15 @@ impl DroneWidget {
         id: NodeId,
         command_ch: Sender<DroneCommand>,
         event_ch: Receiver<DroneEvent>,
-        send_ch: Sender<Packet>,
-        recv_ch: Receiver<Packet>,
+        // send_ch: Sender<Packet>,
+        // recv_ch: Receiver<Packet>,
     ) -> Self {
         Self {
             id,
             command_ch,
             event_ch,
-            send_ch,
-            recv_ch,
+            // send_ch,
+            // recv_ch,
             pdr_input: String::default(),
         }
     }
@@ -86,7 +86,7 @@ impl Drawable for DroneWidget {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientWidget {
     id: NodeId,
     command_ch: Sender<ClientCommand>,
@@ -208,7 +208,7 @@ impl Drawable for ClientWidget {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ServerWidget {
     pub id: NodeId,
     pub command_ch: Sender<ServerCommand>,
