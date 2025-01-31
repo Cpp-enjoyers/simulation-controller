@@ -122,50 +122,58 @@ impl ClientWidget {
             .send(ClientCommand::RemoveSender(neighbor_id));
     }
 
+    pub fn add_list_of_files(&mut self, server_id: NodeId, files: Vec<String>) {
+        self.list_of_files.insert(server_id, files);
+    }
+
+    pub fn add_server_type(&mut self, server_types: HashMap<NodeId, ServerType>) {
+        self.servers_types = server_types;
+    }
+
     pub fn get_id(&self) -> NodeId {
         self.id
     }
 
-    pub fn handle_event(&mut self, event: ClientEvent) {
-        println!("Client {} received event: {:?}", self.id, event);
-        match event {
-            ClientEvent::PacketSent(packet) => {},
-            ClientEvent::Shortcut(packet) => {},
-            ClientEvent::ClientsConnectedToChatServer(items) => {},
-            ClientEvent::ListOfFiles(files, id) => {
-                self.list_of_files.insert(id, files);
-            },
-            ClientEvent::FileFromClient(file_content, server_id) => {
-                println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
-                // let folder = Path::new("tmp");
+    // pub fn handle_event(&mut self, event: ClientEvent) {
+    //     println!("Client {} received event: {:?}", self.id, event);
+    //     match event {
+    //         ClientEvent::PacketSent(packet) => {},
+    //         ClientEvent::Shortcut(packet) => {},
+    //         ClientEvent::ClientsConnectedToChatServer(items) => {},
+    //         ClientEvent::ListOfFiles(files, id) => {
+    //             self.list_of_files.insert(id, files);
+    //         },
+    //         ClientEvent::FileFromClient(file_content, server_id) => {
+    //             println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
+    //             // let folder = Path::new("tmp");
 
-                // if !folder.exists() {
-                //     std::fs::create_dir_all(folder).unwrap();
-                // }
+    //             // if !folder.exists() {
+    //             //     std::fs::create_dir_all(folder).unwrap();
+    //             // }
 
-                // let file_path = folder.join("index.html");
-                // let mut file = File::create(&file_path).unwrap();
-                // file.write_all(file_content.as_bytes()).unwrap();
+    //             // let file_path = folder.join("index.html");
+    //             // let mut file = File::create(&file_path).unwrap();
+    //             // file.write_all(file_content.as_bytes()).unwrap();
 
-                // if webbrowser::open(file_path.to_str().unwrap()).is_err() {
-                //     println!("Failed to open the file in the browser");
-                // }
-            },
-            ClientEvent::ServersTypes(srv_types) => {
-                self.servers_types = srv_types;
-            },
-            ClientEvent::WrongClientId => {},
-            ClientEvent::UnsupportedRequest => {},
-        }
-    }
+    //             // if webbrowser::open(file_path.to_str().unwrap()).is_err() {
+    //             //     println!("Failed to open the file in the browser");
+    //             // }
+    //         },
+    //         ClientEvent::ServersTypes(srv_types) => {
+    //             self.servers_types = srv_types;
+    //         },
+    //         ClientEvent::WrongClientId => {},
+    //         ClientEvent::UnsupportedRequest => {},
+    //     }
+    // }
 }
 
 impl Drawable for ClientWidget {
     fn draw(&mut self, ui: &mut Ui) {
 
-        if let Ok(event) = self.event_ch.try_recv() {
-            self.handle_event(event);
-        }
+        // if let Ok(event) = self.event_ch.try_recv() {
+        //     self.handle_event(event);
+        // }
 
         // Draw the client widget
         ui.label(format!("Client {}", self.id));

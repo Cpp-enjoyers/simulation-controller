@@ -21,6 +21,12 @@ use wg_2024::{
 use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, WidgetType};
 mod widget;
 
+pub enum Events {
+    DroneEvent(DroneEvent),
+    ClientEvent(ClientEvent),
+    ServerEvent(ServerEvent),
+}
+
 pub fn run(id: NodeId,
     drones_channels: HashMap<
         NodeId,
@@ -533,9 +539,66 @@ impl SimulationController {
     }
 
 
-    fn handle_event(&self) {
+    fn handle_event(&mut self) {
+        let mut event_queue: Vec<(NodeId, Events)> = Vec::new();
+        for (drone_id, drone_ch) in &self.drones_channels {
+            if let Ok(event) = drone_ch.1.try_recv() {
+                event_queue.push((*drone_id, Events::DroneEvent(event)));
+            }
+        }
+
+        for (client_id, client_ch) in &self.clients_channels {
+            if let Ok(event) = client_ch.1.try_recv() {
+                event_queue.push((*client_id, Events::ClientEvent(event)));
+            }
+        }
+
+        for (server_id, server_ch) in &self.servers_channels {
+            if let Ok(event) = server_ch.1.try_recv() {
+                event_queue.push((*server_id, Events::ServerEvent(event)));
+            }
+        }
+
+        for (id, event) in event_queue {
+            match event {
+                Events::DroneEvent(event) => self.handle_drone_event(&id, event),
+                Events::ClientEvent(event) => self.handle_client_event(&id, event),
+                Events::ServerEvent(event) => self.handle_server_event(&id, event),
+            }
+        }
 
     }
+
+    fn handle_drone_event(&self, drone_id: &NodeId, event: DroneEvent) {}
+    fn handle_client_event(&mut self, client_id: &NodeId, event: ClientEvent) {
+        match event {
+            ClientEvent::PacketSent(packet) => {},
+            ClientEvent::Shortcut(packet) => {},
+            ClientEvent::ClientsConnectedToChatServer(items) => {},
+            ClientEvent::ListOfFiles(files, server_id) => {
+                let client = self.widgets.get_mut(client_id).unwrap();
+                match client {
+                    WidgetType::Client(client_widget) => {
+                        client_widget.add_list_of_files(server_id, files);
+                    }
+                    _ => {}
+                }
+            },
+            ClientEvent::FileFromClient(items, _) => {},
+            ClientEvent::ServersTypes(types) => {
+                let client = self.widgets.get_mut(client_id).unwrap();
+                match client {
+                    WidgetType::Client(client_widget) => {
+                        client_widget.add_server_type(types);
+                    }
+                    _ => {}
+                }
+            },
+            ClientEvent::WrongClientId => {},
+            ClientEvent::UnsupportedRequest => {},
+        }
+    }
+    fn handle_server_event(&self, server_id: &NodeId, event: ServerEvent) {}
 
     fn read_data(&mut self) {
         if !self.graph.selected_nodes().is_empty() {
@@ -548,13 +611,12 @@ impl SimulationController {
 
 impl eframe::App for SimulationController {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.handle_event();
         self.read_data();
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
-                println!("Selected node: {:?}", idx);
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
-                println!("Node: {:?}", node);
                 match node {
                     WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
                     WidgetType::Client(client_widget) => client_widget.draw(ui),
