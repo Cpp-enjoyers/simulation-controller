@@ -160,7 +160,7 @@ impl ClientWidget {
             },
             ClientEvent::FileFromClient(file_content, server_id) => {
                 println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
-                let folder = Path::new("./tmp");
+                let folder = Path::new("tmp");
 
                 let file_path = folder.join("index.html");
                 let mut file = File::create(file_path.clone()).unwrap();
