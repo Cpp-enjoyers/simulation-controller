@@ -147,10 +147,33 @@ impl ClientWidget {
     pub fn get_id(&self) -> NodeId {
         self.id
     }
+
+    pub fn handle_event(&mut self, event: ClientEvent) {
+        println!("Client {} received event: {:?}", self.id, event);
+        match event {
+            ClientEvent::PacketSent(packet) => todo!(),
+            ClientEvent::Shortcut(packet) => todo!(),
+            ClientEvent::ClientsConnectedToChatServer(items) => todo!(),
+            ClientEvent::ListOfFiles(items, _) => {
+                self.list_of_files = items;
+            },
+            ClientEvent::FileFromClient(_, _) => todo!(),
+            ClientEvent::ServersTypes(srv_types) => {
+                self.servers_types = srv_types;
+            },
+            ClientEvent::WrongClientId => todo!(),
+            ClientEvent::UnsupportedRequest => todo!(),
+        }
+    }
 }
 
 impl Drawable for ClientWidget {
     fn draw(&mut self, ui: &mut Ui) {
+
+        if let Ok(event) = self.event_ch.try_recv() {
+            self.handle_event(event);
+        }
+
         // Draw the client widget
         ui.label(format!("Client {}", self.id));
 
@@ -161,16 +184,16 @@ impl Drawable for ClientWidget {
             self.command_ch.send(cmd);
         }
 
-        while let Ok(event) = self.event_ch.try_recv() {
-            match event {
-                ClientEvent::ServersTypes(types) => {
-                    self.servers_types = types;
-                }
-                _ => {
-                    println!("Diopovero se finisco qua bestemmio");
-                }
-            }
-        }
+        // while let Ok(event) = self.event_ch.try_recv() {
+        //     match event {
+        //         ClientEvent::ServersTypes(types) => {
+        //             self.servers_types = types;
+        //         }
+        //         _ => {
+        //             println!("Diopovero se finisco qua bestemmio");
+        //         }
+        //     }
+        // }
 
         ui.label("Servers types:");
         for (id, srv_type) in &self.servers_types {
@@ -189,17 +212,17 @@ impl Drawable for ClientWidget {
 
         ui.separator();
         ui.label("Received files:");
-        while let Ok(event) = self.event_ch.try_recv() {
-            match event {
-                ClientEvent::ListOfFiles(files, id) => {
-                    println!("Received files from server {}: {:?}", id, files);
-                    self.list_of_files = files;
-                }
-                _ => {
-                    println!("Client event not handled: {:?}", event);
-                }
-            }
-        }
+        // while let Ok(event) = self.event_ch.try_recv() {
+        //     match event {
+        //         ClientEvent::ListOfFiles(files, id) => {
+        //             println!("Received files from server {}: {:?}", id, files);
+        //             self.list_of_files = files;
+        //         }
+        //         _ => {
+        //             println!("Client event not handled: {:?}", event);
+        //         }
+        //     }
+        // }
 
         for f in &self.list_of_files {
             ui.label(f);
