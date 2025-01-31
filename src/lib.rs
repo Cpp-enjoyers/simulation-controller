@@ -187,7 +187,7 @@ impl MyApp {
                 ui.horizontal(|ui| {
                     // Buttons to add/remove sender
                     ui.vertical(|ui| {
-                        ui.set_max_width(95.0); // Width of the remove button
+                        ui.set_max_width(71.0); // Width of the add button
                         // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
                         ui.text_edit_singleline(&mut self.add_neighbor_input);
                         let add_btn = ui.add(Button::new("Add sender"));
