@@ -99,6 +99,47 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
     w
 }
 
+fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> StableGraph<WidgetType, (), Undirected> {
+    let mut g = StableUnGraph::default();
+    let mut h: HashMap<u8, NodeIndex> = HashMap::new();
+    let mut edges: HashSet<(u8, u8)> = HashSet::new();
+
+    for widget in wid {
+        let idx = g.add_node(widget.1.clone());
+        h.insert(*widget.0, idx);
+    }
+
+    // Add edges
+    for dr in drones {
+        for n in &dr.connected_node_ids {
+            if !edges.contains(&(dr.id, *n)) && !edges.contains(&(*n, dr.id)) {
+                g.add_edge(h[&dr.id], h[n], ());
+                edges.insert((dr.id, *n));
+            }
+        }
+    }
+
+    for cl in clients {
+        for n in &cl.connected_drone_ids {
+            if !edges.contains(&(cl.id, *n)) && !edges.contains(&(*n, cl.id)) {
+                g.add_edge(h[&cl.id], h[n], ());
+                edges.insert((cl.id, *n));
+            }
+        }
+    }
+
+    for srv in servers {
+        for n in &srv.connected_drone_ids {
+            if !edges.contains(&(srv.id, *n)) && !edges.contains(&(*n, srv.id)) {
+                g.add_edge(h[&srv.id], h[n], ());
+                edges.insert((srv.id, *n));
+            }
+        }
+    }
+
+    g
+}
+
 // pub struct MyApp {
 //     network: Graph<WidgetType, (), Undirected>,
 //     selected_node: Option<NodeIndex>,
@@ -422,6 +463,7 @@ pub struct SimulationController {
     clients: Vec<Client>,
     servers: Vec<Server>,
     widgets: HashMap<NodeId, WidgetType>,
+    graph: Graph<WidgetType, (), Undirected>,
 }
 
 impl SimulationController {
@@ -459,6 +501,7 @@ impl SimulationController {
         servers: Vec<Server>,
     ) -> Self {
         let widgets = generate_widgets(&drones_channels, &clients_channels, &servers_channels);
+        let graph = generate_graph(&widgets, &drones, &clients, &servers);
         SimulationController {
             id,
             drones_channels,
@@ -468,80 +511,10 @@ impl SimulationController {
             clients,
             servers,
             widgets,
+            graph: Graph::from(&graph),
         }
     }
 
-    fn generate_graph(&self) -> StableGraph<WidgetType, (), Undirected> {
-        let mut g = StableUnGraph::default();
-        let mut h: HashMap<u8, NodeIndex> = HashMap::new();
-        let mut edges: HashSet<(u8, u8)> = HashSet::new();
-
-        println!("Widgets: {:?}", self.widgets);
-        for widget in &self.widgets {
-            let idx = g.add_node(widget.1.clone());
-            h.insert(*widget.0, idx);
-        }
-
-        // for dr in &self.drones {
-        //     let idx = g.add_node(WidgetType::Drone(DroneWidget::new(
-        //         dr.id,
-        //         self.drones_channels[&dr.id].0.clone(),
-        //         self.drones_channels[&dr.id].1.clone(),
-        //         // TODO: maybe useless
-        //         // self.drones_channels[&dr.id].2.clone(),
-        //         // self.drones_channels[&dr.id].3.clone(),
-        //     )));
-        //     h.insert(dr.id, idx);
-        // }
-
-        // for cl in &self.clients {
-        //     let idx = g.add_node(WidgetType::Client(ClientWidget::new(
-        //         cl.id,
-        //         self.clients_channels[&cl.id].0.clone(),
-        //         self.clients_channels[&cl.id].1.clone(),
-        //     )));
-        //     h.insert(cl.id, idx);
-        // }
-
-        // for srv in &self.servers {
-        //     let idx = g.add_node(WidgetType::Server(ServerWidget {
-        //         id: srv.id,
-        //         command_ch: self.servers_channels[&srv.id].0.clone(),
-        //         event_ch: self.servers_channels[&srv.id].1.clone(),
-        //     }));
-        //     h.insert(srv.id, idx);
-        // }
-
-        // Add edges
-        for dr in &self.drones {
-            for n in &dr.connected_node_ids {
-                if !edges.contains(&(dr.id, *n)) && !edges.contains(&(*n, dr.id)) {
-                    g.add_edge(h[&dr.id], h[n], ());
-                    edges.insert((dr.id, *n));
-                }
-            }
-        }
-
-        for cl in &self.clients {
-            for n in &cl.connected_drone_ids {
-                if !edges.contains(&(cl.id, *n)) && !edges.contains(&(*n, cl.id)) {
-                    g.add_edge(h[&cl.id], h[n], ());
-                    edges.insert((cl.id, *n));
-                }
-            }
-        }
-
-        for srv in &self.servers {
-            for n in &srv.connected_drone_ids {
-                if !edges.contains(&(srv.id, *n)) && !edges.contains(&(*n, srv.id)) {
-                    g.add_edge(h[&srv.id], h[n], ());
-                    edges.insert((srv.id, *n));
-                }
-            }
-        }
-
-        g
-    }
 
     fn handle_event(&self) {
 
@@ -552,7 +525,6 @@ impl SimulationController {
 impl eframe::App for SimulationController {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let mut graph = Graph::from(&self.generate_graph());
             let graph_widget: &mut GraphView<
                 '_,
                 WidgetType,
@@ -563,7 +535,7 @@ impl eframe::App for SimulationController {
                 egui_graphs::DefaultEdgeShape,
                 LayoutStateRandom,
                 LayoutRandom,
-            > = &mut GraphView::new(&mut graph)
+            > = &mut GraphView::new(&mut self.graph)
                 .with_interactions(
                     &SettingsInteraction::default().with_node_selection_enabled(true),
                 )
