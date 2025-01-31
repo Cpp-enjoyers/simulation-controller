@@ -545,6 +545,7 @@ impl eframe::App for SimulationController {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
+                println!("Node: {:?}", node);
                 match node {
                     WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
                     WidgetType::Client(client_widget) => client_widget.draw(ui),
