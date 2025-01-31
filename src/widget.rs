@@ -115,7 +115,7 @@ pub struct ClientWidget {
     event_ch: Receiver<ClientEvent>,
     servers_types: HashMap<NodeId, ServerType>,
     id_input: String,
-    list_of_files: Vec<String>,
+    list_of_files: HashMap<NodeId, Vec<String>>,
 }
 
 impl ClientWidget {
@@ -130,7 +130,7 @@ impl ClientWidget {
             event_ch,
             servers_types: HashMap::default(),
             id_input: String::default(),
-            list_of_files: Vec::default(),
+            list_of_files: HashMap::default(),
         }
     }
 
@@ -154,8 +154,10 @@ impl ClientWidget {
             ClientEvent::PacketSent(packet) => {},
             ClientEvent::Shortcut(packet) => {},
             ClientEvent::ClientsConnectedToChatServer(items) => {},
-            ClientEvent::ListOfFiles(items, _) => {
-                self.list_of_files = items;
+            ClientEvent::ListOfFiles(files, id) => {
+                // Strip the path from the files
+                let stripped_files: Vec<String> = files.iter().map(|s| s.split("/").last().unwrap().to_string()).collect();
+                self.list_of_files.insert(id, stripped_files);
             },
             ClientEvent::FileFromClient(_, _) => {},
             ClientEvent::ServersTypes(srv_types) => {
@@ -201,8 +203,13 @@ impl Drawable for ClientWidget {
 
         ui.separator();
         ui.label("Received files:");
-        for f in &self.list_of_files {
-            ui.label(f);
+        // to display the files i can use label + sense trait to add the click event
+        // when a file is clicked is should send a command to client to request the file
+        for (server_id, server_files) in &self.list_of_files {
+            ui.label(format!("Server {}: ", server_id));
+            for file in server_files {
+                ui.label(file);
+            }
         }
     }
 }
