@@ -1,6 +1,6 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
-use egui::{Button, Color32, RichText, Ui};
+use egui::{Button, Color32, Label, RichText, Sense, Ui};
 use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
@@ -159,7 +159,9 @@ impl ClientWidget {
                 let stripped_files: Vec<String> = files.iter().map(|s| s.split("/").last().unwrap().to_string()).collect();
                 self.list_of_files.insert(id, stripped_files);
             },
-            ClientEvent::FileFromClient(_, _) => {},
+            ClientEvent::FileFromClient(file_content, server_id) => {
+                println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
+            },
             ClientEvent::ServersTypes(srv_types) => {
                 self.servers_types = srv_types;
             },
@@ -208,7 +210,12 @@ impl Drawable for ClientWidget {
         for (server_id, server_files) in &self.list_of_files {
             ui.label(format!("Server {}: ", server_id));
             for file in server_files {
-                ui.label(file);
+                // ui.label(file);
+                if ui.add(Label::new(file).sense(Sense::click())).clicked() {
+                    let cmd = ClientCommand::RequestFile(file.to_string(), *server_id);
+                    self.command_ch.send(cmd);
+                }
+
             }
         }
     }
