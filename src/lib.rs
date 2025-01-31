@@ -578,6 +578,7 @@ impl SimulationController {
             ClientEvent::Shortcut(packet) => {},
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, server_id) => {
+                println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
                 let client = self.widgets.get_mut(client_id).unwrap();
                 match client {
                     WidgetType::Client(client_widget) => {
