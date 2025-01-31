@@ -189,6 +189,8 @@ impl MyApp {
                     // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
                     ui.text_edit_singleline(&mut self.add_neighbor_input);
                     let add_btn = ui.add(Button::new("Add sender"));
+                    let btn_size = add_btn.rect.size();
+                    println!("btn_size: {:?}", btn_size);
                     if add_btn.clicked() {
                         let neighbor_id = self.add_neighbor_input.parse().unwrap();
                         // get the NodeIndex of the neighbor and a clone of its Sender
@@ -398,6 +400,7 @@ impl SimulationController {
                 dr.id,
                 self.drones_channels[&dr.id].0.clone(),
                 self.drones_channels[&dr.id].1.clone(),
+                // TODO: maybe useless
                 self.drones_channels[&dr.id].2.clone(),
                 self.drones_channels[&dr.id].3.clone(),
             )));
