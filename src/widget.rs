@@ -1,12 +1,13 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
 use egui::{Button, Color32, Label, RichText, Sense, Ui};
-use std::collections::HashMap;
+use std::{collections::HashMap, env, fs::File, io::Write};
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
     packet::Packet,
 };
+use tempfile::{tempfile, NamedTempFile};
 
 pub trait Drawable {
     fn draw(&mut self, ui: &mut Ui);
@@ -159,6 +160,12 @@ impl ClientWidget {
             },
             ClientEvent::FileFromClient(file_content, server_id) => {
                 println!("Client {} received file from server {}: {:?}", self.id, server_id, file_content);
+                // let mut tmp_file = env::temp_dir();
+                // tmp_file.push("index.html");
+                // let mut file = File::create(tmp_file)?;
+                let mut file = NamedTempFile::new().unwrap();
+                writeln!(file, "{file_content}");
+                println!("Path: {:?}", file.path());
             },
             ClientEvent::ServersTypes(srv_types) => {
                 self.servers_types = srv_types;
