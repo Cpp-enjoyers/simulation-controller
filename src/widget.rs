@@ -151,18 +151,18 @@ impl ClientWidget {
     pub fn handle_event(&mut self, event: ClientEvent) {
         println!("Client {} received event: {:?}", self.id, event);
         match event {
-            ClientEvent::PacketSent(packet) => todo!(),
-            ClientEvent::Shortcut(packet) => todo!(),
-            ClientEvent::ClientsConnectedToChatServer(items) => todo!(),
+            ClientEvent::PacketSent(packet) => {},
+            ClientEvent::Shortcut(packet) => {},
+            ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(items, _) => {
                 self.list_of_files = items;
             },
-            ClientEvent::FileFromClient(_, _) => todo!(),
+            ClientEvent::FileFromClient(_, _) => {},
             ClientEvent::ServersTypes(srv_types) => {
                 self.servers_types = srv_types;
             },
-            ClientEvent::WrongClientId => todo!(),
-            ClientEvent::UnsupportedRequest => todo!(),
+            ClientEvent::WrongClientId => {},
+            ClientEvent::UnsupportedRequest => {},
         }
     }
 }
