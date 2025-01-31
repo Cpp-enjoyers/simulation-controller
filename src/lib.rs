@@ -537,10 +537,18 @@ impl SimulationController {
 
     }
 
+    fn read_data(&mut self) {
+        if !self.graph.selected_nodes().is_empty() {
+            let idx = self.graph.selected_nodes().first().unwrap();
+            self.selected_node = Some(*idx);
+        }
+    }
+
 }
 
 impl eframe::App for SimulationController {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.read_data();
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
