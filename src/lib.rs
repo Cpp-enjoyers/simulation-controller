@@ -582,7 +582,6 @@ impl SimulationController {
             }
         }
 
-        println!("Event queue: {:?}", event_queue);
         for (id, event) in event_queue {
             match event {
                 Events::DroneEvent(event) => self.handle_drone_event(&id, event),
