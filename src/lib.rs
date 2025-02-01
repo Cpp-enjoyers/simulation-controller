@@ -330,7 +330,6 @@ impl SimulationController {
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
-                // TODO: dont modify the widget directly, modify the graph and then update the widget
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
@@ -341,6 +340,7 @@ impl SimulationController {
                 }
             },
             ClientEvent::FileFromClient(files, _) => {
+                println!("{} files received", files.len());
                 let folder = Path::new("tmp");
 
                 if !folder.exists() {
