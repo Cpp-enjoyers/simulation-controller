@@ -11,7 +11,7 @@ use egui_graphs::{
 use petgraph::{
     stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, fs::File, io::Write, path::Path};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
@@ -616,7 +616,21 @@ impl SimulationController {
                     _ => {}
                 }
             },
-            ClientEvent::FileFromClient(items, _) => {},
+            ClientEvent::FileFromClient(files, _) => {
+                let folder = Path::new("tmp");
+
+                if !folder.exists() {
+                    std::fs::create_dir_all(folder).unwrap();
+                }
+
+                let file_path = folder.join("index.html");
+                let mut file = File::create(&file_path).unwrap();
+                file.write_all(&files[0]).unwrap();
+
+                if webbrowser::open(file_path.to_str().unwrap()).is_err() {
+                    println!("Failed to open the file in the browser");
+                }
+            },
             ClientEvent::ServersTypes(types) => {
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
