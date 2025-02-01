@@ -566,6 +566,16 @@ impl SimulationController {
         unreachable!("Se finisci qua rust ha la mamma puttana");
     }
 
+    fn handle_shortcut(&self, id: NodeId, packet: Packet) {
+        if let Some(ch) = self.drones_channels.get(&id) {
+            ch.2.send(packet).unwrap();
+        } else if let Some(ch) = self.clients_channels.get(&id) {
+            ch.2.send(packet).unwrap();
+        } else if let Some(ch) = self.servers_channels.get(&id) {
+            ch.2.send(packet).unwrap();
+        }
+    }
+
     fn handle_event(&mut self) {
         let mut event_queue: Vec<(NodeId, Events)> = Vec::new();
         for (drone_id, drone_ch) in &self.drones_channels {
@@ -600,7 +610,13 @@ impl SimulationController {
     fn handle_client_event(&mut self, client_id: &NodeId, event: ClientEvent) {
         match event {
             ClientEvent::PacketSent(packet) => {},
-            ClientEvent::Shortcut(packet) => {},
+            ClientEvent::Shortcut(packet) => {
+                let destination_id = packet.routing_header.destination();
+                match destination_id {
+                    Some(id) => self.handle_shortcut(id, packet),
+                    None => unreachable!("Is it possible????"),
+                }
+            },
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
