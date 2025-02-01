@@ -303,7 +303,20 @@ impl SimulationController {
 
     }
 
-    fn handle_drone_event(&self, drone_id: &NodeId, event: DroneEvent) {}
+    fn handle_drone_event(&self, drone_id: &NodeId, event: DroneEvent) {
+        match event {
+            DroneEvent::PacketSent(packet) => todo!(),
+            DroneEvent::PacketDropped(packet) => todo!(),
+            DroneEvent::ControllerShortcut(packet) => {
+                let destination_id = packet.routing_header.destination();
+                match destination_id {
+                    Some(id) => self.handle_shortcut(id, packet),
+                    None => unreachable!("Is it possible????"),
+                }
+            },
+        }
+    }
+
     fn handle_client_event(&mut self, client_id: &NodeId, event: ClientEvent) {
         match event {
             ClientEvent::PacketSent(packet) => {},
@@ -356,7 +369,18 @@ impl SimulationController {
             ClientEvent::UnsupportedRequest => {},
         }
     }
-    fn handle_server_event(&self, server_id: &NodeId, event: ServerEvent) {}
+    fn handle_server_event(&self, server_id: &NodeId, event: ServerEvent) {
+        match event {
+            ServerEvent::PacketSent(packet) => {},
+            ServerEvent::ShortCut(packet) => {
+                let destination_id = packet.routing_header.destination();
+                match destination_id {
+                    Some(id) => self.handle_shortcut(id, packet),
+                    None => unreachable!("Is it possible????"),
+                }
+            },
+        }
+    }
 
     fn read_data(&mut self) {
         if !self.graph.selected_nodes().is_empty() {
