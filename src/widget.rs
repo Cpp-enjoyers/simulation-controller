@@ -77,6 +77,28 @@ impl Drawable for DroneWidget {
     }
 }
 
+impl Widget for &mut DroneWidget {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
+        ui.vertical(|ui| {
+            ui.label(format!("Drone {}", self.id));
+            ui.label("Change PDR");
+            ui.text_edit_singleline(&mut self.pdr_input);
+            if ui.button("Send").clicked() {
+                let cmd = DroneCommand::SetPacketDropRate(self.pdr_input.parse().unwrap());
+                self.command_ch.send(cmd);
+            }
+
+            ui.separator();
+            ui.label("Crash the drone");
+            let red_btn =
+                ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
+            if red_btn.clicked() {
+                self.command_ch.send(DroneCommand::Crash);
+            }
+        }).response
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ClientWidget {
     id: NodeId,
