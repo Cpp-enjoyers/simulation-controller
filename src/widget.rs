@@ -222,6 +222,50 @@ impl Drawable for ClientWidget {
     }
 }
 
+impl Widget for &mut ClientWidget {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
+        ui.vertical(|ui| {
+            ui.label(format!("Client {}", self.id));
+
+            // Send command to ask for servers types
+            ui.label("Ask for Server types");
+            if ui.button("Send").clicked() {
+                let cmd = ClientCommand::AskServersTypes;
+                self.command_ch.send(cmd);
+            }
+
+            ui.label("Servers types:");
+            for (id, srv_type) in &self.servers_types {
+                ui.label(format!("Server {}: {:?}", id, srv_type));
+            }
+
+            ui.separator();
+
+            // Send command to ask for files
+            ui.label("Ask for Server files");
+            ui.text_edit_singleline(&mut self.id_input);
+            if ui.button("Send").clicked() {
+                let cmd = ClientCommand::AskListOfFiles(self.id_input.parse().unwrap());
+                self.command_ch.send(cmd);
+            }
+
+            ui.separator();
+            ui.label("Received files:");
+            for (server_id, server_files) in &self.list_of_files {
+                ui.label(format!("Server {}: ", server_id));
+                for file in server_files {
+                    let file_name = file.split("/").last().unwrap().to_string();
+                    if ui.add(Label::new(file_name).sense(Sense::click())).clicked() {
+                        let cmd = ClientCommand::RequestFile(file.to_string(), *server_id);
+                        self.command_ch.send(cmd);
+                    }
+
+                }
+            }
+        }).response
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ServerWidget {
     pub id: NodeId,

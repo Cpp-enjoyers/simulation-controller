@@ -648,9 +648,8 @@ impl eframe::App for SimulationController {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => ui.add(drone_widget),
-                    // WidgetType::Client(client_widget) => client_widget.draw(ui),
+                    WidgetType::Client(client_widget) => ui.add(client_widget),
                     WidgetType::Server(server_widget) => ui.add(server_widget),
-                    _ => ui.label("Not implemented"),
                 }
             } else {
                 ui.label("No node selected")
