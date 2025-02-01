@@ -80,6 +80,7 @@ pub struct ClientWidget {
     servers_types: HashMap<NodeId, ServerType>,
     id_input: String,
     list_of_files: HashMap<NodeId, Vec<String>>,
+    chat_server_id: String,
 }
 
 impl ClientWidget {
@@ -93,6 +94,7 @@ impl ClientWidget {
             servers_types: HashMap::default(),
             id_input: String::default(),
             list_of_files: HashMap::default(),
+            chat_server_id: String::default(),
         }
     }
 
@@ -160,6 +162,17 @@ impl Widget for &mut ClientWidget {
 
                 }
             }
+
+            // Button to connect to chat server
+            ui.separator();
+            ui.label("Connect to chat server");
+            ui.text_edit_singleline(&mut self.chat_server_id);
+            // TODO: Add validation for the input (also for other inputs)
+            if ui.button("Connect").clicked() {
+                let cmd = ClientCommand::ConnectToChatServer(self.chat_server_id.parse().unwrap());
+                self.command_ch.send(cmd);
+            }
+
         }).response
     }
 }
