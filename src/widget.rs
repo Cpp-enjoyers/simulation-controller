@@ -1,6 +1,6 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
-use egui::{Button, Color32, Label, RichText, Sense, Ui};
+use egui::{Button, Color32, Label, RichText, Sense, Ui, Widget};
 use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
@@ -236,5 +236,11 @@ impl Drawable for ServerWidget {
     fn draw(&mut self, ui: &mut Ui) {
         // Draw the server widget
         ui.label(format!("Server {}", self.id));
+    }
+}
+
+impl Widget for &mut ServerWidget {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
+        ui.label(format!("Server {}", self.id))
     }
 }
