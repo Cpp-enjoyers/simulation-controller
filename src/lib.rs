@@ -85,7 +85,6 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
         w.insert(*id, Rc::new(RefCell::new(WidgetType::Drone(DroneWidget::new(
             *id,
             channels.0.clone(),
-            channels.1.clone(),
         )))));
     }
 
@@ -93,7 +92,6 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
         w.insert(*id, Rc::new(RefCell::new(WidgetType::Client(ClientWidget::new(
             *id,
             channels.0.clone(),
-            channels.1.clone(),
         )))));
     }
 
@@ -101,7 +99,6 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
         w.insert(*id, Rc::new(RefCell::new(WidgetType::Server(ServerWidget {
             id: *id,
             command_ch: channels.0.clone(),
-            event_ch: channels.1.clone(),
         }))));
     }
     w

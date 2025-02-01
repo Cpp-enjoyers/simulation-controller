@@ -1,7 +1,7 @@
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, ServerType};
 use crossbeam_channel::{Receiver, Sender};
 use egui::{Button, Color32, Label, RichText, Sense, Ui};
-use std::{collections::HashMap, fs::File, io::Write, path::Path};
+use std::collections::HashMap;
 use wg_2024::{
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
@@ -23,9 +23,6 @@ pub enum WidgetType {
 pub struct DroneWidget {
     id: NodeId,
     command_ch: Sender<DroneCommand>,
-    event_ch: Receiver<DroneEvent>,
-    // send_ch: Sender<Packet>,
-    // recv_ch: Receiver<Packet>,
     pdr_input: String,
 }
 
@@ -33,16 +30,10 @@ impl DroneWidget {
     pub fn new(
         id: NodeId,
         command_ch: Sender<DroneCommand>,
-        event_ch: Receiver<DroneEvent>,
-        // send_ch: Sender<Packet>,
-        // recv_ch: Receiver<Packet>,
     ) -> Self {
         Self {
             id,
             command_ch,
-            event_ch,
-            // send_ch,
-            // recv_ch,
             pdr_input: String::default(),
         }
     }
@@ -90,7 +81,6 @@ impl Drawable for DroneWidget {
 pub struct ClientWidget {
     id: NodeId,
     command_ch: Sender<ClientCommand>,
-    event_ch: Receiver<ClientEvent>,
     servers_types: HashMap<NodeId, ServerType>,
     id_input: String,
     list_of_files: HashMap<NodeId, Vec<String>>,
@@ -100,12 +90,10 @@ impl ClientWidget {
     pub fn new(
         id: NodeId,
         command_ch: Sender<ClientCommand>,
-        event_ch: Receiver<ClientEvent>,
     ) -> Self {
         Self {
             id,
             command_ch,
-            event_ch,
             servers_types: HashMap::default(),
             id_input: String::default(),
             list_of_files: HashMap::default(),
@@ -171,10 +159,6 @@ impl ClientWidget {
 impl Drawable for ClientWidget {
     fn draw(&mut self, ui: &mut Ui) {
 
-        // if let Ok(event) = self.event_ch.try_recv() {
-        //     self.handle_event(event);
-        // }
-
         // Draw the client widget
         ui.label(format!("Client {}", self.id));
 
@@ -220,19 +204,16 @@ impl Drawable for ClientWidget {
 pub struct ServerWidget {
     pub id: NodeId,
     pub command_ch: Sender<ServerCommand>,
-    pub event_ch: Receiver<ServerEvent>,
 }
 
 impl ServerWidget {
     pub fn new(
         id: NodeId,
         command_ch: Sender<ServerCommand>,
-        event_ch: Receiver<ServerEvent>,
     ) -> Self {
         Self {
             id,
             command_ch,
-            event_ch,
         }
     }
 
