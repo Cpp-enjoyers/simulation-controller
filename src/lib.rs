@@ -305,8 +305,8 @@ impl SimulationController {
 
     fn handle_drone_event(&self, drone_id: &NodeId, event: DroneEvent) {
         match event {
-            DroneEvent::PacketSent(packet) => todo!(),
-            DroneEvent::PacketDropped(packet) => todo!(),
+            DroneEvent::PacketSent(packet) => {},
+            DroneEvent::PacketDropped(packet) => {},
             DroneEvent::ControllerShortcut(packet) => {
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
