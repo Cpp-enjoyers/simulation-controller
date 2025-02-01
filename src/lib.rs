@@ -75,34 +75,6 @@ pub fn run(id: NodeId,
         ).expect("Failed to run simulation controller");
 }
 
-type UWidget = Rc<RefCell<WidgetType>>;
-pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>),>,
-                        c: &HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
-                        s: &HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>)
-                        -> HashMap<NodeId, UWidget>{
-    let mut w: HashMap<NodeId, UWidget> = HashMap::new();
-    for (id, channels) in d {
-        w.insert(*id, Rc::new(RefCell::new(WidgetType::Drone(DroneWidget::new(
-            *id,
-            channels.0.clone(),
-        )))));
-    }
-
-    for (id, channels) in c {
-        w.insert(*id, Rc::new(RefCell::new(WidgetType::Client(ClientWidget::new(
-            *id,
-            channels.0.clone(),
-        )))));
-    }
-
-    for (id, channels) in s {
-        w.insert(*id, Rc::new(RefCell::new(WidgetType::Server(ServerWidget {
-            id: *id,
-            command_ch: channels.0.clone(),
-        }))));
-    }
-    w
-}
 
 type DChannels<'a> = &'a HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
 type CChannels<'a> = &'a HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>;
@@ -111,11 +83,6 @@ fn generate_graph(dh: DChannels, ch: CChannels, sh: SChannels, drones: &Vec<Dron
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
-
-    // for widget in wid {
-    //     let idx = g.add_node(widget.1.clone());
-    //     h.insert(*widget.0, idx);
-    // }
 
     for (id, channels) in dh {
         let idx = g.add_node(WidgetType::Drone(DroneWidget::new(*id, channels.0.clone())));
@@ -506,7 +473,6 @@ pub struct SimulationController {
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
-    widgets: HashMap<NodeId, UWidget>,
     graph: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
 }
@@ -545,7 +511,6 @@ impl SimulationController {
         clients: Vec<Client>,
         servers: Vec<Server>,
     ) -> Self {
-        let widgets = generate_widgets(&drones_channels, &clients_channels, &servers_channels);
         let graph = generate_graph(&drones_channels, &clients_channels, &servers_channels, &drones, &clients, &servers);
         SimulationController {
             id,
@@ -555,7 +520,6 @@ impl SimulationController {
             drones,
             clients,
             servers,
-            widgets,
             graph,
             selected_node: Option::default(),
         }
