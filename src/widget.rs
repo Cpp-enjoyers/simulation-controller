@@ -241,6 +241,11 @@ impl Drawable for ServerWidget {
 
 impl Widget for &mut ServerWidget {
     fn ui(self, ui: &mut Ui) -> egui::Response {
-        ui.label(format!("Server {}", self.id))
+        ui.vertical_centered(|ui| {
+            ui.label(format!("Server {}", self.id));
+            if ui.button("test").clicked() {
+                println!("test");
+            }
+        }).response
     }
 }
