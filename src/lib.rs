@@ -104,14 +104,35 @@ pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<Dron
     w
 }
 
-fn generate_graph(wid: &HashMap<NodeId, UWidget>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<UWidget, (), Undirected> {
+type DChannels<'a> = &'a HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
+type CChannels<'a> = &'a HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>;
+type SChannels<'a> = &'a HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>;
+fn generate_graph(dh: DChannels, ch: CChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
 
-    for widget in wid {
-        let idx = g.add_node(widget.1.clone());
-        h.insert(*widget.0, idx);
+    // for widget in wid {
+    //     let idx = g.add_node(widget.1.clone());
+    //     h.insert(*widget.0, idx);
+    // }
+
+    for (id, channels) in dh {
+        let idx = g.add_node(WidgetType::Drone(DroneWidget::new(*id, channels.0.clone())));
+        h.insert(*id, idx);
+    }
+
+    for (id, channels) in ch {
+        let idx = g.add_node(WidgetType::Client(ClientWidget::new(*id, channels.0.clone())));
+        h.insert(*id, idx);
+    }
+
+    for (id, channels) in sh {
+        let idx = g.add_node(WidgetType::Server(ServerWidget {
+            id: *id,
+            command_ch: channels.0.clone(),
+        }));
+        h.insert(*id, idx);
     }
 
     // Add edges
@@ -147,8 +168,8 @@ fn generate_graph(wid: &HashMap<NodeId, UWidget>, drones: &Vec<Drone>, clients: 
     let temp: Vec<(NodeIndex, String)> = eg_graph
         .nodes_iter()
         .map(|(idx, node)| {
-            let widget = node.payload().borrow();
-            match &*widget {
+            let widget = node.payload();
+            match widget {
                 WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
                 WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
                 WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
@@ -486,7 +507,7 @@ pub struct SimulationController {
     clients: Vec<Client>,
     servers: Vec<Server>,
     widgets: HashMap<NodeId, UWidget>,
-    graph: Graph<UWidget, (), Undirected>,
+    graph: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
 }
 
@@ -525,7 +546,7 @@ impl SimulationController {
         servers: Vec<Server>,
     ) -> Self {
         let widgets = generate_widgets(&drones_channels, &clients_channels, &servers_channels);
-        let graph = generate_graph(&widgets, &drones, &clients, &servers);
+        let graph = generate_graph(&drones_channels, &clients_channels, &servers_channels, &drones, &clients, &servers);
         SimulationController {
             id,
             drones_channels,
@@ -542,7 +563,7 @@ impl SimulationController {
 
     fn get_node_idx(&self, id: NodeId) -> NodeIndex {
         for (node_idx, widget) in self.graph.nodes_iter() {
-            match &*widget.payload().borrow() {
+            match widget.payload() {
                 WidgetType::Drone(drone_widget) => {
                     if drone_widget.get_id() == id {
                         return node_idx;
@@ -618,9 +639,10 @@ impl SimulationController {
             ClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
                 // TODO: dont modify the widget directly, modify the graph and then update the widget
-                let mut client = self.widgets.get(client_id).unwrap().borrow_mut();
-                match *client {
-                    WidgetType::Client(ref mut client_widget) => {
+                let client_idx = self.get_node_idx(*client_id);
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+                match client {
+                    WidgetType::Client(client_widget) => {
                         client_widget.add_list_of_files(server_id, files);
                     }
                     _ => {}
@@ -628,11 +650,10 @@ impl SimulationController {
             },
             ClientEvent::FileFromClient(items, _) => {},
             ClientEvent::ServersTypes(types) => {
-                // let client_idx = self.get_node_idx(*client_id);
-                // let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                let mut client = self.widgets.get(client_id).unwrap().borrow_mut();
-                match *client {
-                    WidgetType::Client(ref mut client_widget) => {
+                let client_idx = self.get_node_idx(*client_id);
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+                match client {
+                    WidgetType::Client(client_widget) => {
                         client_widget.add_server_type(types);
                     }
                     _ => {}
@@ -661,8 +682,7 @@ impl eframe::App for SimulationController {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
-                let mut nw = node.borrow_mut();
-                match *nw {
+                match node {
                     WidgetType::Drone(ref mut drone_widget) => drone_widget.draw(ui),
                     WidgetType::Client(ref mut client_widget) => client_widget.draw(ui),
                     WidgetType::Server(ref mut server_widget) => server_widget.draw(ui),
@@ -672,7 +692,7 @@ impl eframe::App for SimulationController {
         egui::CentralPanel::default().show(ctx, |ui| {
             let graph_widget: &mut GraphView<
                 '_,
-                UWidget,
+                WidgetType,
                 (),
                 petgraph::Undirected,
                 u32,
