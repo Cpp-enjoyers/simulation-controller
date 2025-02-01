@@ -22,7 +22,7 @@ use widget::{ClientWidget, DroneWidget, ServerWidget, WidgetType};
 mod widget;
 
 #[derive(Clone, Debug)]
-pub enum Events {
+enum Events {
     DroneEvent(DroneEvent),
     ClientEvent(ClientEvent),
     ServerEvent(ServerEvent),
@@ -152,7 +152,7 @@ fn generate_graph(dh: DChannels, ch: CChannels, sh: SChannels, drones: &Vec<Dron
 }
 
 #[derive(Debug)]
-pub struct SimulationController {
+struct SimulationController {
     id: NodeId,
     drones_channels: HashMap<
         NodeId,
