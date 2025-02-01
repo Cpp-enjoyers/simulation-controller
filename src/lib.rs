@@ -2,23 +2,23 @@
 
 use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
 use crossbeam_channel::{Receiver, Sender};
-use eframe::{egui, CreationContext};
-use egui::{accesskit::Node, Button, CentralPanel, SidePanel, TopBottomPanel};
+use eframe::egui;
+use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
 };
 use petgraph::{
-    graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected
+    stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
-use std::{cell::RefCell, collections::{HashMap, HashSet}, rc::Rc};
+use std::collections::{HashMap, HashSet};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
     network::NodeId,
     packet::Packet,
 };
-use widget::{ClientWidget, Drawable, DroneWidget, ServerWidget, WidgetType};
+use widget::{ClientWidget, DroneWidget, ServerWidget, WidgetType};
 mod widget;
 
 #[derive(Clone, Debug)]
@@ -689,13 +689,13 @@ impl SimulationController {
                             let neighbor_g_idx = self.get_node_idx(neighbor_id);
                             let neighbor_send_ch =
                             match self.graph.node(neighbor_g_idx).unwrap().payload() {
-                                WidgetType::Drone(drone_widget) => {
+                                WidgetType::Drone(_) => {
                                     self.drones_channels[&neighbor_id].2.clone()
                                 }
-                                WidgetType::Client(client_widget) => {
+                                WidgetType::Client(_) => {
                                     self.clients_channels[&neighbor_id].2.clone()
                                 }
-                                WidgetType::Server(server_widget) => {
+                                WidgetType::Server(_) => {
                                     self.servers_channels[&neighbor_id].2.clone()
                                 }
                             };
