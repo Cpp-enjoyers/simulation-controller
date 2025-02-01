@@ -482,8 +482,6 @@ impl SimulationController {
                             self.graph.node_mut(neighbor_g_idx).unwrap().payload_mut();
                             match other_node {
                                 WidgetType::Drone(other_drone_widget) => {
-                                    println!("drones_channels: {:?}", self.drones_channels);
-                                    println!("current_node_id: {:?}", current_node_id);
                                     other_drone_widget.add_neighbor(current_node_id, current_send_ch);
                                 }
                                 WidgetType::Client(other_client_widget) => {
