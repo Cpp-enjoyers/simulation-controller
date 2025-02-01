@@ -11,7 +11,7 @@ use egui_graphs::{
 use petgraph::{
     graph, stable_graph::{NodeIndex, StableGraph, StableUnGraph}, Undirected
 };
-use std::collections::{HashMap, HashSet};
+use std::{cell::RefCell, collections::{HashMap, HashSet}, rc::Rc};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
@@ -75,38 +75,39 @@ pub fn run(id: NodeId,
         ).expect("Failed to run simulation controller");
 }
 
+type UWidget = Rc<RefCell<WidgetType>>;
 pub fn generate_widgets(d: &HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>),>,
                         c: &HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>,
                         s: &HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>)
-                        -> HashMap<NodeId, WidgetType>{
-    let mut w = HashMap::new();
+                        -> HashMap<NodeId, UWidget>{
+    let mut w: HashMap<NodeId, UWidget> = HashMap::new();
     for (id, channels) in d {
-        w.insert(*id, WidgetType::Drone(DroneWidget::new(
+        w.insert(*id, Rc::new(RefCell::new(WidgetType::Drone(DroneWidget::new(
             *id,
             channels.0.clone(),
             channels.1.clone(),
-        )));
+        )))));
     }
 
     for (id, channels) in c {
-        w.insert(*id, WidgetType::Client(ClientWidget::new(
+        w.insert(*id, Rc::new(RefCell::new(WidgetType::Client(ClientWidget::new(
             *id,
             channels.0.clone(),
             channels.1.clone(),
-        )));
+        )))));
     }
 
     for (id, channels) in s {
-        w.insert(*id, WidgetType::Server(ServerWidget {
+        w.insert(*id, Rc::new(RefCell::new(WidgetType::Server(ServerWidget {
             id: *id,
             command_ch: channels.0.clone(),
             event_ch: channels.1.clone(),
-        }));
+        }))));
     }
     w
 }
 
-fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
+fn generate_graph(wid: &HashMap<NodeId, UWidget>, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<UWidget, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
@@ -148,10 +149,13 @@ fn generate_graph(wid: &HashMap<NodeId, WidgetType>, drones: &Vec<Drone>, client
     // Since graph library is beatiful, first iterate over the nodes to construct the labels for each node
     let temp: Vec<(NodeIndex, String)> = eg_graph
         .nodes_iter()
-        .map(|(idx, node)| match node.payload() {
-            WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
-            WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
-            WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
+        .map(|(idx, node)| {
+            let widget = node.payload().borrow();
+            match &*widget {
+                WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
+                WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
+                WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
+            }
         })
         .collect();
     // Then iterate over the nodes again to set the labels
@@ -484,8 +488,8 @@ pub struct SimulationController {
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
-    widgets: HashMap<NodeId, WidgetType>,
-    graph: Graph<WidgetType, (), Undirected>,
+    widgets: HashMap<NodeId, UWidget>,
+    graph: Graph<UWidget, (), Undirected>,
     selected_node: Option<NodeIndex>,
 }
 
@@ -541,7 +545,7 @@ impl SimulationController {
 
     fn get_node_idx(&self, id: NodeId) -> NodeIndex {
         for (node_idx, widget) in self.graph.nodes_iter() {
-            match widget.payload() {
+            match &*widget.payload().borrow() {
                 WidgetType::Drone(drone_widget) => {
                     if drone_widget.get_id() == id {
                         return node_idx;
@@ -600,9 +604,10 @@ impl SimulationController {
             ClientEvent::ClientsConnectedToChatServer(items) => {},
             ClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
-                let client = self.widgets.get_mut(client_id).unwrap();
-                match client {
-                    WidgetType::Client(client_widget) => {
+                // TODO: dont modify the widget directly, modify the graph and then update the widget
+                let mut client = self.widgets.get(client_id).unwrap().borrow_mut();
+                match *client {
+                    WidgetType::Client(ref mut client_widget) => {
                         client_widget.add_list_of_files(server_id, files);
                     }
                     _ => {}
@@ -610,10 +615,11 @@ impl SimulationController {
             },
             ClientEvent::FileFromClient(items, _) => {},
             ClientEvent::ServersTypes(types) => {
-                let client_idx = self.get_node_idx(*client_id);
-                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                match client {
-                    WidgetType::Client(client_widget) => {
+                // let client_idx = self.get_node_idx(*client_id);
+                // let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+                let mut client = self.widgets.get(client_id).unwrap().borrow_mut();
+                match *client {
+                    WidgetType::Client(ref mut client_widget) => {
                         client_widget.add_server_type(types);
                     }
                     _ => {}
@@ -642,17 +648,18 @@ impl eframe::App for SimulationController {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
-                match node {
-                    WidgetType::Drone(drone_widget) => drone_widget.draw(ui),
-                    WidgetType::Client(client_widget) => client_widget.draw(ui),
-                    WidgetType::Server(server_widget) => server_widget.draw(ui),
+                let mut nw = node.borrow_mut();
+                match *nw {
+                    WidgetType::Drone(ref mut drone_widget) => drone_widget.draw(ui),
+                    WidgetType::Client(ref mut client_widget) => client_widget.draw(ui),
+                    WidgetType::Server(ref mut server_widget) => server_widget.draw(ui),
                 }
             }
         });
         egui::CentralPanel::default().show(ctx, |ui| {
             let graph_widget: &mut GraphView<
                 '_,
-                WidgetType,
+                UWidget,
                 (),
                 petgraph::Undirected,
                 u32,
