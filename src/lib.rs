@@ -475,6 +475,8 @@ pub struct SimulationController {
     servers: Vec<Server>,
     graph: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
+    add_neighbor_input: String,
+    rm_neighbor_input: String,
 }
 
 impl SimulationController {
@@ -522,6 +524,8 @@ impl SimulationController {
             servers,
             graph,
             selected_node: Option::default(),
+            add_neighbor_input: String::default(),
+            rm_neighbor_input: String::default(),
         }
     }
 
@@ -650,7 +654,7 @@ impl SimulationController {
                 ui.label("No node selected")
             }
         });
-        egui::CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show(ctx, |ui| {
             let graph_widget: &mut GraphView<
                 '_,
                 WidgetType,
@@ -668,7 +672,128 @@ impl SimulationController {
                 .with_styles(&SettingsStyle::default().with_labels_always(true))
                 .with_navigations(&SettingsNavigation::default().with_zoom_and_pan_enabled(true));
             ui.add(graph_widget);       
+        });
+        TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
+            if let Some(idx) = self.selected_node {
+                ui.label(format!("Selected node: {:?}", idx));
+                ui.horizontal(|ui| {
+                    // Buttons to add/remove sender
+                    ui.vertical(|ui| {
+                        ui.set_max_width(71.0); // Width of the add button
+                        // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
+                        ui.text_edit_singleline(&mut self.add_neighbor_input);
+                        let add_btn = ui.add(Button::new("Add sender"));
+                        if add_btn.clicked() {
+                            let neighbor_id = self.add_neighbor_input.parse().unwrap();
+                            // get the NodeIndex of the neighbor and a clone of its Sender
+                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                            let neighbor_send_ch =
+                            match self.graph.node(neighbor_g_idx).unwrap().payload() {
+                                WidgetType::Drone(drone_widget) => {
+                                    self.drones_channels[&neighbor_id].2.clone()
+                                }
+                                WidgetType::Client(client_widget) => {
+                                    self.clients_channels[&neighbor_id].2.clone()
+                                }
+                                WidgetType::Server(server_widget) => {
+                                    self.servers_channels[&neighbor_id].2.clone()
+                                }
+                            };
+                            
+                            let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+                            // get the id of the current and a clone of its Sender
+                            let (current_node_id, current_send_ch) = match current_node {
+                                WidgetType::Drone(drone_widget) => (
+                                    drone_widget.get_id(),
+                                    self.drones_channels[&drone_widget.get_id()].2.clone(),
+                                ),
+                                WidgetType::Client(client_widget) => (
+                                    client_widget.get_id(),
+                                    self.clients_channels[&client_widget.get_id()].2.clone(),
+                                ),
+                                WidgetType::Server(server_widget) => (
+                                    server_widget.get_id(),
+                                    self.servers_channels[&server_widget.get_id()].2.clone(),
+                                ),
+                            };
+                            
+                            match current_node {
+                                WidgetType::Drone(drone_widget) => {
+                                    drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                }
+                                WidgetType::Client(client_widget) => {
+                                    client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                }
+                                WidgetType::Server(server_widget) => {
+                                    server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                }
+                            }
+                            
+                            let other_node =
+                            self.graph.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                            match other_node {
+                                WidgetType::Drone(other_drone_widget) => {
+                                    println!("drones_channels: {:?}", self.drones_channels);
+                                    println!("current_node_id: {:?}", current_node_id);
+                                    other_drone_widget.add_neighbor(current_node_id, current_send_ch);
+                                }
+                                WidgetType::Client(other_client_widget) => {
+                                    other_client_widget.add_neighbor(current_node_id, current_send_ch);
+                                }
+                                WidgetType::Server(other_server_widget) => {
+                                    other_server_widget.add_neighbor(current_node_id, current_send_ch);
+                                }
+                            }
+                            self.graph.add_edge(idx, neighbor_g_idx, ());
+                        }
+                    });
 
+                    ui.add_space(15.0);
+
+                    // Remove sender button
+                    ui.vertical(|ui| {
+                        ui.set_max_width(95.0); // Width of the remove button
+                        ui.text_edit_singleline(&mut self.rm_neighbor_input);
+                        let remove_btn = ui.add(Button::new("Remove sender"));
+                        
+                        if remove_btn.clicked() {
+                            let neighbor_id = self.rm_neighbor_input.parse().unwrap();
+                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                            let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+                            let current_node_id = match current_node {
+                                WidgetType::Drone(drone_widget) => {
+                                    drone_widget.remove_neighbor(neighbor_id);
+                                    drone_widget.get_id()
+                                }
+                                WidgetType::Client(client_widget) => {
+                                    client_widget.remove_neighbor(neighbor_id);
+                                    client_widget.get_id()
+                                }
+                                WidgetType::Server(server_widget) => {
+                                    server_widget.remove_neighbor(neighbor_id);
+                                    server_widget.get_id()
+                                }
+                            };
+                            
+                            let other_node =
+                            self.graph.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                            match other_node {
+                                WidgetType::Drone(other_drone_widget) => {
+                                    other_drone_widget.remove_neighbor(current_node_id);
+                                }
+                                WidgetType::Client(other_client_widget) => {
+                                    other_client_widget.remove_neighbor(current_node_id);
+                                }
+                                WidgetType::Server(other_server_widget) => {
+                                    other_server_widget.remove_neighbor(current_node_id);
+                                }
+                            }
+                            
+                            self.graph.remove_edges_between(idx, neighbor_g_idx);
+                        }
+                    });
+                });
+            }
         });
     }
 
