@@ -81,6 +81,7 @@ pub struct ClientWidget {
     id_input: String,
     list_of_files: HashMap<NodeId, Vec<String>>,
     chat_server_id: String,
+    list_of_connected_users: Vec<NodeId>,
 }
 
 impl ClientWidget {
@@ -95,6 +96,7 @@ impl ClientWidget {
             id_input: String::default(),
             list_of_files: HashMap::default(),
             chat_server_id: String::default(),
+            list_of_connected_users: Vec::default(),
         }
     }
 
@@ -114,6 +116,10 @@ impl ClientWidget {
 
     pub fn add_server_type(&mut self, server_types: HashMap<NodeId, ServerType>) {
         self.servers_types = server_types;
+    }
+
+    pub fn add_connected_users(&mut self, users_id: Vec<NodeId>) {
+        self.list_of_connected_users = users_id;
     }
 
     pub fn get_id(&self) -> NodeId {

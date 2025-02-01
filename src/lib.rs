@@ -327,7 +327,16 @@ impl SimulationController {
                     None => unreachable!("Is it possible????"),
                 }
             },
-            ClientEvent::ClientsConnectedToChatServer(items) => {},
+            ClientEvent::ClientsConnectedToChatServer(users) => {
+                let client_idx = self.get_node_idx(*client_id);
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+                match client {
+                    WidgetType::Client(client_widget) => {
+                        client_widget.add_connected_users(users);
+                    }
+                    _ => {}
+                }
+            },
             ClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
                 let client_idx = self.get_node_idx(*client_id);
