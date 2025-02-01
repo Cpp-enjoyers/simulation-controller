@@ -636,12 +636,7 @@ impl SimulationController {
         }
     }
 
-}
-
-impl eframe::App for SimulationController {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.handle_event();
-        self.read_data();
+    fn render(&mut self, ctx: &egui::Context) {
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
@@ -675,5 +670,14 @@ impl eframe::App for SimulationController {
             ui.add(graph_widget);       
 
         });
+    }
+
+}
+
+impl eframe::App for SimulationController {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.handle_event();
+        self.read_data();
+        self.render(ctx);
     }
 }
