@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 wg_2024 = { git = "https://github.com/WGL-2024/WGL_repo_2024.git", features = ["serialize", "debug"] }
 crossbeam-channel = "0.5"
-common = { git = "https://github.com/Cpp-enjoyers/common.git", branch = "rework" }
+common = { git = "https://github.com/Cpp-enjoyers/common.git" }
 eframe = "0.30.0"
 egui_graphs = "0.23.0"
 egui = "0.30.0"
