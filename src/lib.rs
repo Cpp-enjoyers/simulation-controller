@@ -18,8 +18,8 @@ use wg_2024::{
     network::NodeId,
     packet::Packet,
 };
-use widget::{ClientWidget, DroneWidget, ServerWidget, WidgetType};
-mod widget;
+mod widgets;
+use widgets::{drone_widget::DroneWidget, web_client_widget::ClientWidget, server_widget::ServerWidget, WidgetType};
 
 #[derive(Clone, Debug)]
 enum Events {
