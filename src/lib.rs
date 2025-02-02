@@ -365,7 +365,7 @@ impl SimulationController {
                     let img_selector = scraper::Selector::parse("img").unwrap();
                     let html = scraper::Html::parse_document(&html_stringified);
                     let imgs_name: Vec<String> = html.select(&img_selector)
-                        .filter_map(|img| img.value().attr("name"))
+                        .filter_map(|img| img.value().attr("src"))
                         .map(String::from)
                         .collect();
 
