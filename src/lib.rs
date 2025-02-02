@@ -373,7 +373,7 @@ impl SimulationController {
                     _ => {}
                 }
             },
-            WebClientEvent::FileFromClient(mut response, _) => {
+            WebClientEvent::FileFromClient(response, _) => {
                 let folder = Path::new("tmp");
                 let media_folder = Path::new("tmp/media");
                 let (filename, html_file) = response.get_html_file();
