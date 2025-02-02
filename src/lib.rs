@@ -351,10 +351,14 @@ impl SimulationController {
             ClientEvent::FileFromClient(mut files, _) => {
                 println!("{} files received", files.len());
                 let folder = Path::new("tmp");
-                let media_folder = folder.join("media");
+                let media_folder = Path::new("tmp/media");
 
-                if !folder.exists() || !media_folder.exists() {
-                    std::fs::create_dir_all(&media_folder).unwrap();
+                if !folder.exists() {
+                    std::fs::create_dir_all(folder).unwrap();
+                }
+
+                if !media_folder.exists() {
+                    std::fs::create_dir_all(media_folder).unwrap();
                 }
 
                 let file_path = folder.join("index.html");
