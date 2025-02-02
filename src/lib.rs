@@ -369,6 +369,7 @@ impl SimulationController {
                         .map(String::from)
                         .collect();
 
+                    println!("Images extracted from html: {:?}", imgs_name);
                     for (img, img_name) in files.iter().zip(imgs_name.iter()) {
                         let img_path = folder.join(img_name);
                         let mut img_file = File::create(img_path).unwrap();
