@@ -371,8 +371,9 @@ impl SimulationController {
 
                     println!("Images extracted from html: {:?}", imgs_name);
                     for (img, img_name) in files.iter().zip(imgs_name.iter()) {
+                        println!("Serializing {} as {:?}", img_name, img);
                         let img_path = folder.join(img_name);
-                        let mut img_file = File::create(img_path).unwrap();
+                        let mut img_file = File::create(&img_path).unwrap();
                         img_file.write_all(&img).unwrap();
                     }
 
