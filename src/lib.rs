@@ -350,6 +350,7 @@ impl SimulationController {
             },
             ClientEvent::FileFromClient(mut files, _) => {
                 println!("{} files received", files.len());
+                println!("img: {:?}", &files[1]);
                 let folder = Path::new("tmp");
 
                 if !folder.exists() {
