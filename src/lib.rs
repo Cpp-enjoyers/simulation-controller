@@ -1,6 +1,6 @@
 #![warn(clippy::pedantic)]
 
-use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent};
+use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
 use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
@@ -24,7 +24,7 @@ use widgets::{drone_widget::DroneWidget, web_client_widget::ClientWidget, server
 #[derive(Clone, Debug)]
 enum Events {
     DroneEvent(DroneEvent),
-    ClientEvent(ClientEvent),
+    WebClientEvent(WebClientEvent),
     ServerEvent(ServerEvent),
 }
 
@@ -38,11 +38,11 @@ pub fn run(id: NodeId,
             Receiver<Packet>,
         ),
     >,
-    clients_channels: HashMap<
+    web_clients_channels: HashMap<
         NodeId,
         (
-            Sender<ClientCommand>,
-            Receiver<ClientEvent>,
+            Sender<WebClientCommand>,
+            Receiver<WebClientEvent>,
             Sender<Packet>,
             Receiver<Packet>,
         ),
@@ -66,7 +66,7 @@ pub fn run(id: NodeId,
             Box::new(|_cc| Ok(Box::new(SimulationController::new(
                 id,
                 drones_channels,
-                clients_channels,
+                web_clients_channels,
                 servers_channels,
                 drones,
                 clients,
@@ -77,9 +77,9 @@ pub fn run(id: NodeId,
 
 
 type DChannels<'a> = &'a HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
-type CChannels<'a> = &'a HashMap<NodeId, (Sender<ClientCommand>, Receiver<ClientEvent>, Sender<Packet>, Receiver<Packet>)>;
+type WCChannels<'a> = &'a HashMap<NodeId, (Sender<WebClientCommand>, Receiver<WebClientEvent>, Sender<Packet>, Receiver<Packet>)>;
 type SChannels<'a> = &'a HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>;
-fn generate_graph(dh: DChannels, ch: CChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
+fn generate_graph(dh: DChannels, ch: WCChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
@@ -163,11 +163,11 @@ struct SimulationController {
             Receiver<Packet>,
         ),
     >,
-    clients_channels: HashMap<
+    web_clients_channels: HashMap<
         NodeId,
         (
-            Sender<ClientCommand>,
-            Receiver<ClientEvent>,
+            Sender<WebClientCommand>,
+            Receiver<WebClientEvent>,
             Sender<Packet>,
             Receiver<Packet>,
         ),
@@ -202,11 +202,11 @@ impl SimulationController {
                 Receiver<Packet>,
             ),
         >,
-        clients_channels: HashMap<
+        web_clients_channels: HashMap<
             NodeId,
             (
-                Sender<ClientCommand>,
-                Receiver<ClientEvent>,
+                Sender<WebClientCommand>,
+                Receiver<WebClientEvent>,
                 Sender<Packet>,
                 Receiver<Packet>,
             ),
@@ -224,11 +224,11 @@ impl SimulationController {
         clients: Vec<Client>,
         servers: Vec<Server>,
     ) -> Self {
-        let graph = generate_graph(&drones_channels, &clients_channels, &servers_channels, &drones, &clients, &servers);
+        let graph = generate_graph(&drones_channels, &web_clients_channels, &servers_channels, &drones, &clients, &servers);
         SimulationController {
             id,
             drones_channels,
-            clients_channels,
+            web_clients_channels,
             servers_channels,
             drones,
             clients,
@@ -266,7 +266,7 @@ impl SimulationController {
     fn handle_shortcut(&self, id: NodeId, packet: Packet) {
         if let Some(ch) = self.drones_channels.get(&id) {
             ch.2.send(packet).unwrap();
-        } else if let Some(ch) = self.clients_channels.get(&id) {
+        } else if let Some(ch) = self.web_clients_channels.get(&id) {
             ch.2.send(packet).unwrap();
         } else if let Some(ch) = self.servers_channels.get(&id) {
             ch.2.send(packet).unwrap();
@@ -281,9 +281,9 @@ impl SimulationController {
             }
         }
 
-        for (client_id, client_ch) in &self.clients_channels {
+        for (client_id, client_ch) in &self.web_clients_channels {
             if let Ok(event) = client_ch.1.try_recv() {
-                event_queue.push((*client_id, Events::ClientEvent(event)));
+                event_queue.push((*client_id, Events::WebClientEvent(event)));
             }
         }
 
@@ -296,7 +296,7 @@ impl SimulationController {
         for (id, event) in event_queue {
             match event {
                 Events::DroneEvent(event) => self.handle_drone_event(&id, event),
-                Events::ClientEvent(event) => self.handle_client_event(&id, event),
+                Events::WebClientEvent(event) => self.handle_client_event(&id, event),
                 Events::ServerEvent(event) => self.handle_server_event(&id, event),
             }
         }
@@ -317,27 +317,17 @@ impl SimulationController {
         }
     }
 
-    fn handle_client_event(&mut self, client_id: &NodeId, event: ClientEvent) {
+    fn handle_client_event(&mut self, client_id: &NodeId, event: WebClientEvent) {
         match event {
-            ClientEvent::PacketSent(packet) => {},
-            ClientEvent::Shortcut(packet) => {
+            WebClientEvent::PacketSent(packet) => {},
+            WebClientEvent::Shortcut(packet) => {
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
                     Some(id) => self.handle_shortcut(id, packet),
                     None => unreachable!("Is it possible????"),
                 }
             },
-            ClientEvent::ClientsConnectedToChatServer(users) => {
-                let client_idx = self.get_node_idx(*client_id);
-                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                match client {
-                    WidgetType::Client(client_widget) => {
-                        client_widget.add_connected_users(users);
-                    }
-                    _ => {}
-                }
-            },
-            ClientEvent::ListOfFiles(files, server_id) => {
+            WebClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
@@ -348,7 +338,7 @@ impl SimulationController {
                     _ => {}
                 }
             },
-            ClientEvent::FileFromClient(mut files, _) => {
+            WebClientEvent::FileFromClient(mut files, _) => {
                 println!("{} files received", files.len());
                 let folder = Path::new("tmp");
                 let media_folder = Path::new("tmp/media");
@@ -390,7 +380,7 @@ impl SimulationController {
                     println!("Failed to open the file in the browser");
                 }
             },
-            ClientEvent::ServersTypes(types) => {
+            WebClientEvent::ServersTypes(types) => {
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
@@ -400,8 +390,7 @@ impl SimulationController {
                     _ => {}
                 }
             },
-            ClientEvent::WrongClientId => {},
-            ClientEvent::UnsupportedRequest => {},
+            WebClientEvent::UnsupportedRequest => {},
         }
     }
     fn handle_server_event(&self, server_id: &NodeId, event: ServerEvent) {
@@ -477,7 +466,7 @@ impl SimulationController {
                                     self.drones_channels[&neighbor_id].2.clone()
                                 }
                                 WidgetType::Client(_) => {
-                                    self.clients_channels[&neighbor_id].2.clone()
+                                    self.web_clients_channels[&neighbor_id].2.clone()
                                 }
                                 WidgetType::Server(_) => {
                                     self.servers_channels[&neighbor_id].2.clone()
@@ -493,7 +482,7 @@ impl SimulationController {
                                 ),
                                 WidgetType::Client(client_widget) => (
                                     client_widget.get_id(),
-                                    self.clients_channels[&client_widget.get_id()].2.clone(),
+                                    self.web_clients_channels[&client_widget.get_id()].2.clone(),
                                 ),
                                 WidgetType::Server(server_widget) => (
                                     server_widget.get_id(),
