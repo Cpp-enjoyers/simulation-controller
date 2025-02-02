@@ -351,9 +351,10 @@ impl SimulationController {
             ClientEvent::FileFromClient(mut files, _) => {
                 println!("{} files received", files.len());
                 let folder = Path::new("tmp");
+                let media_folder = folder.join("media");
 
-                if !folder.exists() {
-                    std::fs::create_dir_all(folder).unwrap();
+                if !folder.exists() || !media_folder.exists() {
+                    std::fs::create_dir_all(&media_folder).unwrap();
                 }
 
                 let file_path = folder.join("index.html");
@@ -372,7 +373,7 @@ impl SimulationController {
                     println!("Images extracted from html: {:?}", imgs_name);
                     for (img, img_name) in files.iter().zip(imgs_name.iter()) {
                         println!("Serializing {} as {:?}", img_name, img);
-                        let img_path = folder.join(img_name);
+                        let img_path = media_folder.join(img_name);
                         let mut img_file = File::create(&img_path).unwrap();
                         img_file.write_all(&img).unwrap();
                     }
