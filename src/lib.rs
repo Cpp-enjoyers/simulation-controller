@@ -1,6 +1,6 @@
 #![warn(clippy::pedantic)]
 
-use common::slc_commands::{ClientCommand, ClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
+use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
 use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
@@ -19,7 +19,7 @@ use wg_2024::{
     packet::Packet,
 };
 mod widgets;
-use widgets::{drone_widget::DroneWidget, web_client_widget::ClientWidget, server_widget::ServerWidget, WidgetType};
+use widgets::{drone_widget::DroneWidget, web_client_widget::WebClientWidget, server_widget::ServerWidget, WidgetType};
 
 #[derive(Clone, Debug)]
 enum Events {
@@ -47,6 +47,15 @@ pub fn run(id: NodeId,
             Receiver<Packet>,
         ),
     >,
+    chat_clients_channels: HashMap<
+        NodeId,
+        (
+            Sender<ChatClientCommand>,
+            Receiver<ChatClientEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
     servers_channels: HashMap<
         NodeId,
         (
@@ -67,6 +76,7 @@ pub fn run(id: NodeId,
                 id,
                 drones_channels,
                 web_clients_channels,
+                chat_clients_channels,
                 servers_channels,
                 drones,
                 clients,
@@ -90,7 +100,7 @@ fn generate_graph(dh: DChannels, ch: WCChannels, sh: SChannels, drones: &Vec<Dro
     }
 
     for (id, channels) in ch {
-        let idx = g.add_node(WidgetType::Client(ClientWidget::new(*id, channels.0.clone())));
+        let idx = g.add_node(WidgetType::WebClient(WebClientWidget::new(*id, channels.0.clone())));
         h.insert(*id, idx);
     }
 
@@ -138,7 +148,8 @@ fn generate_graph(dh: DChannels, ch: WCChannels, sh: SChannels, drones: &Vec<Dro
             let widget = node.payload();
             match widget {
                 WidgetType::Drone(d) => (idx, format!("Drone {}", d.get_id())),
-                WidgetType::Client(c) => (idx, format!("Client {}", c.get_id())),
+                WidgetType::WebClient(wc) => (idx, format!("Web Client {}", wc.get_id())),
+                WidgetType::ChatClient(cc) => (idx, format!("Chat Client {}", cc.get_id())),
                 WidgetType::Server(s) => (idx, format!("Server {}", s.get_id())),
             }
         })
@@ -168,6 +179,15 @@ struct SimulationController {
         (
             Sender<WebClientCommand>,
             Receiver<WebClientEvent>,
+            Sender<Packet>,
+            Receiver<Packet>,
+        ),
+    >,
+    chat_clients_channels: HashMap<
+        NodeId,
+        (
+            Sender<ChatClientCommand>,
+            Receiver<ChatClientEvent>,
             Sender<Packet>,
             Receiver<Packet>,
         ),
@@ -211,6 +231,15 @@ impl SimulationController {
                 Receiver<Packet>,
             ),
         >,
+        chat_clients_channels: HashMap<
+            NodeId,
+            (
+                Sender<ChatClientCommand>,
+                Receiver<ChatClientEvent>,
+                Sender<Packet>,
+                Receiver<Packet>,
+            ),
+        >,
         servers_channels: HashMap<
             NodeId,
             (
@@ -229,6 +258,7 @@ impl SimulationController {
             id,
             drones_channels,
             web_clients_channels,
+            chat_clients_channels,
             servers_channels,
             drones,
             clients,
@@ -248,8 +278,13 @@ impl SimulationController {
                         return node_idx;
                     }
                 }
-                WidgetType::Client(client_widget) => {
-                    if client_widget.get_id() == id {
+                WidgetType::WebClient(web_client_widget) => {
+                    if web_client_widget.get_id() == id {
+                        return node_idx;
+                    }
+                }
+                WidgetType::ChatClient(chat_client_widget) => {
+                    if chat_client_widget.get_id() == id {
                         return node_idx;
                     }
                 }
@@ -332,16 +367,16 @@ impl SimulationController {
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
-                    WidgetType::Client(client_widget) => {
+                    WidgetType::WebClient(client_widget) => {
                         client_widget.add_list_of_files(server_id, files);
                     }
                     _ => {}
                 }
             },
-            WebClientEvent::FileFromClient(mut files, _) => {
-                println!("{} files received", files.len());
+            WebClientEvent::FileFromClient(mut response, _) => {
                 let folder = Path::new("tmp");
                 let media_folder = Path::new("tmp/media");
+                let (filename, html_file) = response.get_html_file();
 
                 if !folder.exists() {
                     std::fs::create_dir_all(folder).unwrap();
@@ -351,30 +386,15 @@ impl SimulationController {
                     std::fs::create_dir_all(media_folder).unwrap();
                 }
 
-                let file_path = folder.join("index.html");
+                let file_path = folder.join(filename);
                 let mut file = File::create(&file_path).unwrap();
+                file.write_all(&html_file).unwrap();
 
-                if files.len() >= 1 {
-                    let html_file = files.remove(0);
-                    let html_stringified = String::from_utf8(html_file.clone()).unwrap();
-                    let img_selector = scraper::Selector::parse("img").unwrap();
-                    let html = scraper::Html::parse_document(&html_stringified);
-                    let imgs_name: Vec<String> = html.select(&img_selector)
-                        .filter_map(|img| img.value().attr("src"))
-                        .map(String::from)
-                        .collect();
-
-                    println!("Images extracted from html: {:?}", imgs_name);
-                    for (img, img_name) in files.iter().zip(imgs_name.iter()) {
-                        let img_path = media_folder.join(img_name);
-                        let mut img_file = File::create(&img_path).unwrap();
-                        img_file.write_all(&img).unwrap();
-                    }
-
-                    // Write html file
-                    file.write_all(&html_file).unwrap();
+                for (media_name, media_content) in response.get_media_files() {
+                    let media_path = media_folder.join(media_name);
+                    let mut media_file = File::create(&media_path).unwrap();
+                    media_file.write_all(media_content).unwrap();
                 }
-
 
                 if webbrowser::open(file_path.to_str().unwrap()).is_err() {
                     println!("Failed to open the file in the browser");
@@ -384,7 +404,7 @@ impl SimulationController {
                 let client_idx = self.get_node_idx(*client_id);
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
-                    WidgetType::Client(client_widget) => {
+                    WidgetType::WebClient(client_widget) => {
                         client_widget.add_server_type(types);
                     }
                     _ => {}
@@ -420,7 +440,8 @@ impl SimulationController {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => ui.add(drone_widget),
-                    WidgetType::Client(client_widget) => ui.add(client_widget),
+                    WidgetType::WebClient(web_client_widget) => ui.add(web_client_widget),
+                    WidgetType::ChatClient(chat_client_widget) => ui.add(chat_client_widget),
                     WidgetType::Server(server_widget) => ui.add(server_widget),
                 }
             } else {
@@ -465,8 +486,11 @@ impl SimulationController {
                                 WidgetType::Drone(_) => {
                                     self.drones_channels[&neighbor_id].2.clone()
                                 }
-                                WidgetType::Client(_) => {
+                                WidgetType::WebClient(_) => {
                                     self.web_clients_channels[&neighbor_id].2.clone()
+                                }
+                                WidgetType::ChatClient(_) => {
+                                    self.chat_clients_channels[&neighbor_id].2.clone()
                                 }
                                 WidgetType::Server(_) => {
                                     self.servers_channels[&neighbor_id].2.clone()
@@ -480,9 +504,13 @@ impl SimulationController {
                                     drone_widget.get_id(),
                                     self.drones_channels[&drone_widget.get_id()].2.clone(),
                                 ),
-                                WidgetType::Client(client_widget) => (
-                                    client_widget.get_id(),
-                                    self.web_clients_channels[&client_widget.get_id()].2.clone(),
+                                WidgetType::WebClient(web_client_widget) => (
+                                    web_client_widget.get_id(),
+                                    self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
+                                ),
+                                WidgetType::ChatClient(chat_client_widget) => (
+                                    chat_client_widget.get_id(),
+                                    self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
                                 ),
                                 WidgetType::Server(server_widget) => (
                                     server_widget.get_id(),
@@ -494,8 +522,11 @@ impl SimulationController {
                                 WidgetType::Drone(drone_widget) => {
                                     drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
                                 }
-                                WidgetType::Client(client_widget) => {
-                                    client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                WidgetType::WebClient(web_client_widget) => {
+                                    web_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                }
+                                WidgetType::ChatClient(chat_client_widget) => {
+                                    chat_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
                                 }
                                 WidgetType::Server(server_widget) => {
                                     server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
@@ -508,8 +539,11 @@ impl SimulationController {
                                 WidgetType::Drone(other_drone_widget) => {
                                     other_drone_widget.add_neighbor(current_node_id, current_send_ch);
                                 }
-                                WidgetType::Client(other_client_widget) => {
-                                    other_client_widget.add_neighbor(current_node_id, current_send_ch);
+                                WidgetType::WebClient(other_web_client_widget) => {
+                                    other_web_client_widget.add_neighbor(current_node_id, current_send_ch);
+                                }
+                                WidgetType::ChatClient(other_chat_client_widget) => {
+                                    other_chat_client_widget.add_neighbor(current_node_id, current_send_ch);
                                 }
                                 WidgetType::Server(other_server_widget) => {
                                     other_server_widget.add_neighbor(current_node_id, current_send_ch);
@@ -536,9 +570,13 @@ impl SimulationController {
                                     drone_widget.remove_neighbor(neighbor_id);
                                     drone_widget.get_id()
                                 }
-                                WidgetType::Client(client_widget) => {
-                                    client_widget.remove_neighbor(neighbor_id);
-                                    client_widget.get_id()
+                                WidgetType::WebClient(web_client_widget) => {
+                                    web_client_widget.remove_neighbor(neighbor_id);
+                                    web_client_widget.get_id()
+                                }
+                                WidgetType::ChatClient(chat_client_widget) => {
+                                    chat_client_widget.remove_neighbor(neighbor_id);
+                                    chat_client_widget.get_id()
                                 }
                                 WidgetType::Server(server_widget) => {
                                     server_widget.remove_neighbor(neighbor_id);
@@ -552,8 +590,11 @@ impl SimulationController {
                                 WidgetType::Drone(other_drone_widget) => {
                                     other_drone_widget.remove_neighbor(current_node_id);
                                 }
-                                WidgetType::Client(other_client_widget) => {
-                                    other_client_widget.remove_neighbor(current_node_id);
+                                WidgetType::WebClient(other_web_client_widget) => {
+                                    other_web_client_widget.remove_neighbor(current_node_id);
+                                }
+                                WidgetType::ChatClient(other_chat_client_widget) => {
+                                    other_chat_client_widget.remove_neighbor(current_node_id);
                                 }
                                 WidgetType::Server(other_server_widget) => {
                                     other_server_widget.remove_neighbor(current_node_id);

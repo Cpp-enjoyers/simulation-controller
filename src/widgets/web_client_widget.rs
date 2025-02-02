@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use common::slc_commands::{ClientCommand, ServerType, WebClientCommand};
+use common::slc_commands::{ServerType, WebClientCommand};
 use crossbeam_channel::Sender;
 use egui::{Label, Sense, Ui, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
 #[derive(Clone, Debug)]
-pub struct ClientWidget {
+pub struct WebClientWidget {
     id: NodeId,
     command_ch: Sender<WebClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
@@ -16,7 +16,7 @@ pub struct ClientWidget {
     list_of_connected_users: Vec<NodeId>,
 }
 
-impl ClientWidget {
+impl WebClientWidget {
     pub fn new(
         id: NodeId,
         command_ch: Sender<WebClientCommand>,
@@ -60,7 +60,7 @@ impl ClientWidget {
 }
 
 
-impl Widget for &mut ClientWidget {
+impl Widget for &mut WebClientWidget {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Client {}", self.id));
