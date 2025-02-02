@@ -348,7 +348,7 @@ impl SimulationController {
                     _ => {}
                 }
             },
-            ClientEvent::FileFromClient(files, _) => {
+            ClientEvent::FileFromClient(mut files, _) => {
                 println!("{} files received", files.len());
                 let folder = Path::new("tmp");
 
@@ -358,7 +358,27 @@ impl SimulationController {
 
                 let file_path = folder.join("index.html");
                 let mut file = File::create(&file_path).unwrap();
-                file.write_all(&files[0]).unwrap();
+
+                if files.len() >= 1 {
+                    let html_file = files.remove(0);
+                    let html_stringified = String::from_utf8(html_file.clone()).unwrap();
+                    let img_selector = scraper::Selector::parse("img").unwrap();
+                    let html = scraper::Html::parse_document(&html_stringified);
+                    let imgs_name: Vec<String> = html.select(&img_selector)
+                        .filter_map(|img| img.value().attr("name"))
+                        .map(String::from)
+                        .collect();
+
+                    for (img, img_name) in files.iter().zip(imgs_name.iter()) {
+                        let img_path = folder.join(img_name);
+                        let mut img_file = File::create(img_path).unwrap();
+                        img_file.write_all(&img).unwrap();
+                    }
+
+                    // Write html file
+                    file.write_all(&html_file).unwrap();
+                }
+
 
                 if webbrowser::open(file_path.to_str().unwrap()).is_err() {
                     println!("Failed to open the file in the browser");
