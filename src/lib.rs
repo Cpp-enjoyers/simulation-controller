@@ -377,6 +377,7 @@ impl SimulationController {
                 let folder = Path::new("tmp");
                 let media_folder = Path::new("tmp/media");
                 let (filename, html_file) = response.get_html_file();
+                println!("Received file: {}", filename);
 
                 if !folder.exists() {
                     std::fs::create_dir_all(folder).unwrap();
