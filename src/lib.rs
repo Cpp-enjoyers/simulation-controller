@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, SidePanel, TopBottomPanel};
+use egui::{Button, CentralPanel, RichText, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
@@ -207,6 +207,7 @@ struct SimulationController {
     graph: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
     add_neighbor_input: String,
+    add_neighbor_error: String,
     rm_neighbor_input: String,
 }
 
@@ -266,36 +267,37 @@ impl SimulationController {
             graph,
             selected_node: Option::default(),
             add_neighbor_input: String::default(),
+            add_neighbor_error: String::default(),
             rm_neighbor_input: String::default(),
         }
     }
 
-    fn get_node_idx(&self, id: NodeId) -> NodeIndex {
+    fn get_node_idx(&self, id: NodeId) -> Option<NodeIndex> {
         for (node_idx, widget) in self.graph.nodes_iter() {
             match widget.payload() {
                 WidgetType::Drone(drone_widget) => {
                     if drone_widget.get_id() == id {
-                        return node_idx;
+                        return Some(node_idx);
                     }
                 }
                 WidgetType::WebClient(web_client_widget) => {
                     if web_client_widget.get_id() == id {
-                        return node_idx;
+                        return Some(node_idx);
                     }
                 }
                 WidgetType::ChatClient(chat_client_widget) => {
                     if chat_client_widget.get_id() == id {
-                        return node_idx;
+                        return Some(node_idx);
                     }
                 }
                 WidgetType::Server(server_widget) => {
                     if server_widget.get_id() == id {
-                        return node_idx;
+                        return Some(node_idx);
                     }
                 }
             }
         }
-        unreachable!("Se finisci qua rust ha la mamma puttana");
+        None
     }
 
     fn handle_shortcut(&self, id: NodeId, packet: Packet) {
@@ -364,7 +366,7 @@ impl SimulationController {
             },
             WebClientEvent::ListOfFiles(files, server_id) => {
                 println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
-                let client_idx = self.get_node_idx(*client_id);
+                let client_idx = self.get_node_idx(*client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
                     WidgetType::WebClient(client_widget) => {
@@ -402,7 +404,7 @@ impl SimulationController {
                 }
             },
             WebClientEvent::ServersTypes(types) => {
-                let client_idx = self.get_node_idx(*client_id);
+                let client_idx = self.get_node_idx(*client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
                     WidgetType::WebClient(client_widget) => {
@@ -424,6 +426,50 @@ impl SimulationController {
                     None => unreachable!("Is it possible????"),
                 }
             },
+        }
+    }
+
+    /**
+     * Here I should validate the input and parse it to a NodeId
+     * The input shouldn't be empty and should be a number
+     * I should take into account who is trying to add who as a neighbor
+     * If the current node is a drone, the neighbor could be drone/client/server
+     * If the current node is either a client or a server, the neighbor must be a drone
+     * Lastly, the neighbor must exist in the graph
+     */
+    fn validate_parse_neighbor_id(&self, input_neighbor_id: &String) -> Result<u8, String> {
+        if input_neighbor_id.is_empty() {
+            return Err("The input field cannot be empty".to_string());
+        }
+
+        let neighbor_id = input_neighbor_id.parse::<u8>().unwrap();
+        let neighbor_idx = self.get_node_idx(neighbor_id);
+        if let Some(current_select_node) = self.selected_node {
+            match self.graph.node(current_select_node).unwrap().payload() {
+                WidgetType::Drone(_) => {
+                    // A drone can be connected to every type of node
+                    match neighbor_idx {
+                        Some(_) => return Ok(neighbor_id),
+                        None => return Err("ID not found".to_string()),
+                    }
+                },
+                _ => {
+                    if neighbor_idx.is_some() {
+                        // Clients/Servers can be connected only to drones
+                        match self.graph.node(neighbor_idx.unwrap()).unwrap().payload() {
+                            WidgetType::Drone(_) => return Ok(neighbor_id),
+                            WidgetType::WebClient(_) => return Err("A client can only be connected with a drone".to_string()),
+                            WidgetType::ChatClient(_) => return Err("A client can only be connected with a drone".to_string()),
+                            WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
+                        }
+                    } else {
+                        return Err("Id not found".to_string())
+                    }
+                },
+            }
+
+        } else {
+            return Err("No selected node".to_string());
         }
     }
 
@@ -479,78 +525,87 @@ impl SimulationController {
                         ui.text_edit_singleline(&mut self.add_neighbor_input);
                         let add_btn = ui.add(Button::new("Add sender"));
                         if add_btn.clicked() {
-                            let neighbor_id = self.add_neighbor_input.parse().unwrap();
-                            // get the NodeIndex of the neighbor and a clone of its Sender
-                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
-                            let neighbor_send_ch =
-                            match self.graph.node(neighbor_g_idx).unwrap().payload() {
-                                WidgetType::Drone(_) => {
-                                    self.drones_channels[&neighbor_id].2.clone()
-                                }
-                                WidgetType::WebClient(_) => {
-                                    self.web_clients_channels[&neighbor_id].2.clone()
-                                }
-                                WidgetType::ChatClient(_) => {
-                                    self.chat_clients_channels[&neighbor_id].2.clone()
-                                }
-                                WidgetType::Server(_) => {
-                                    self.servers_channels[&neighbor_id].2.clone()
-                                }
-                            };
-                            
-                            let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-                            // get the id of the current and a clone of its Sender
-                            let (current_node_id, current_send_ch) = match current_node {
-                                WidgetType::Drone(drone_widget) => (
-                                    drone_widget.get_id(),
-                                    self.drones_channels[&drone_widget.get_id()].2.clone(),
-                                ),
-                                WidgetType::WebClient(web_client_widget) => (
-                                    web_client_widget.get_id(),
-                                    self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
-                                ),
-                                WidgetType::ChatClient(chat_client_widget) => (
-                                    chat_client_widget.get_id(),
-                                    self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
-                                ),
-                                WidgetType::Server(server_widget) => (
-                                    server_widget.get_id(),
-                                    self.servers_channels[&server_widget.get_id()].2.clone(),
-                                ),
-                            };
-                            
-                            match current_node {
-                                WidgetType::Drone(drone_widget) => {
-                                    drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                }
-                                WidgetType::WebClient(web_client_widget) => {
-                                    web_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                }
-                                WidgetType::ChatClient(chat_client_widget) => {
-                                    chat_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                }
-                                WidgetType::Server(server_widget) => {
-                                    server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                }
+                            match self.validate_parse_neighbor_id(&self.add_neighbor_input) {
+                                Ok(neighbor_id) => {
+                                    // get the NodeIndex of the neighbor and a clone of its Sender
+                                    let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                                    let neighbor_send_ch =
+                                    match self.graph.node(neighbor_g_idx.unwrap()).unwrap().payload() {
+                                        WidgetType::Drone(_) => {
+                                            self.drones_channels[&neighbor_id].2.clone()
+                                        }
+                                        WidgetType::WebClient(_) => {
+                                            self.web_clients_channels[&neighbor_id].2.clone()
+                                        }
+                                        WidgetType::ChatClient(_) => {
+                                            self.chat_clients_channels[&neighbor_id].2.clone()
+                                        }
+                                        WidgetType::Server(_) => {
+                                            self.servers_channels[&neighbor_id].2.clone()
+                                        }
+                                    };
+
+                                    let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+                                    // get the id of the current and a clone of its Sender
+                                    let (current_node_id, current_send_ch) = match current_node {
+                                        WidgetType::Drone(drone_widget) => (
+                                            drone_widget.get_id(),
+                                            self.drones_channels[&drone_widget.get_id()].2.clone(),
+                                        ),
+                                        WidgetType::WebClient(web_client_widget) => (
+                                            web_client_widget.get_id(),
+                                            self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
+                                        ),
+                                        WidgetType::ChatClient(chat_client_widget) => (
+                                            chat_client_widget.get_id(),
+                                            self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
+                                        ),
+                                        WidgetType::Server(server_widget) => (
+                                            server_widget.get_id(),
+                                            self.servers_channels[&server_widget.get_id()].2.clone(),
+                                        ),
+                                    };
+
+                                    match current_node {
+                                        WidgetType::Drone(drone_widget) => {
+                                            drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                        }
+                                        WidgetType::WebClient(web_client_widget) => {
+                                            web_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                        }
+                                        WidgetType::ChatClient(chat_client_widget) => {
+                                            chat_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                        }
+                                        WidgetType::Server(server_widget) => {
+                                            server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
+                                        }
+                                    }
+
+                                    let other_node =
+                                    self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
+                                    match other_node {
+                                        WidgetType::Drone(other_drone_widget) => {
+                                            other_drone_widget.add_neighbor(current_node_id, current_send_ch);
+                                        }
+                                        WidgetType::WebClient(other_web_client_widget) => {
+                                            other_web_client_widget.add_neighbor(current_node_id, current_send_ch);
+                                        }
+                                        WidgetType::ChatClient(other_chat_client_widget) => {
+                                            other_chat_client_widget.add_neighbor(current_node_id, current_send_ch);
+                                        }
+                                        WidgetType::Server(other_server_widget) => {
+                                            other_server_widget.add_neighbor(current_node_id, current_send_ch);
+                                        }
+                                    }
+                                    self.graph.add_edge(idx, neighbor_g_idx.unwrap(), ());
+                                },
+                                Err(error) => self.add_neighbor_error = error,
                             }
-                            
-                            let other_node =
-                            self.graph.node_mut(neighbor_g_idx).unwrap().payload_mut();
-                            match other_node {
-                                WidgetType::Drone(other_drone_widget) => {
-                                    other_drone_widget.add_neighbor(current_node_id, current_send_ch);
-                                }
-                                WidgetType::WebClient(other_web_client_widget) => {
-                                    other_web_client_widget.add_neighbor(current_node_id, current_send_ch);
-                                }
-                                WidgetType::ChatClient(other_chat_client_widget) => {
-                                    other_chat_client_widget.add_neighbor(current_node_id, current_send_ch);
-                                }
-                                WidgetType::Server(other_server_widget) => {
-                                    other_server_widget.add_neighbor(current_node_id, current_send_ch);
-                                }
-                            }
-                            self.graph.add_edge(idx, neighbor_g_idx, ());
+                        }
+
+                        // Display the potential error
+                        if !self.add_neighbor_error.is_empty() {
+                            ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
                         }
                     });
 
@@ -586,7 +641,7 @@ impl SimulationController {
                             };
                             
                             let other_node =
-                            self.graph.node_mut(neighbor_g_idx).unwrap().payload_mut();
+                            self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
                             match other_node {
                                 WidgetType::Drone(other_drone_widget) => {
                                     other_drone_widget.remove_neighbor(current_node_id);
@@ -602,7 +657,7 @@ impl SimulationController {
                                 }
                             }
                             
-                            self.graph.remove_edges_between(idx, neighbor_g_idx);
+                            self.graph.remove_edges_between(idx, neighbor_g_idx.unwrap());
                         }
                     });
                 });
