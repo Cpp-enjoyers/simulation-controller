@@ -527,6 +527,7 @@ impl SimulationController {
                         if add_btn.clicked() {
                             match self.validate_parse_neighbor_id(&self.add_neighbor_input) {
                                 Ok(neighbor_id) => {
+                                    self.add_neighbor_error = String::new();
                                     // get the NodeIndex of the neighbor and a clone of its Sender
                                     let neighbor_g_idx = self.get_node_idx(neighbor_id);
                                     let neighbor_send_ch =
