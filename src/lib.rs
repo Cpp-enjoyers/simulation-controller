@@ -209,6 +209,7 @@ struct SimulationController {
     add_neighbor_input: String,
     add_neighbor_error: String,
     rm_neighbor_input: String,
+    rm_neighbor_error: String,
 }
 
 impl SimulationController {
@@ -269,6 +270,7 @@ impl SimulationController {
             add_neighbor_input: String::default(),
             add_neighbor_error: String::default(),
             rm_neighbor_input: String::default(),
+            rm_neighbor_error: String::default(),
         }
     }
 
@@ -441,7 +443,7 @@ impl SimulationController {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
         }
-
+        // if the parsing goes wrong... rico kaboom
         let neighbor_id = input_neighbor_id.parse::<u8>().unwrap();
         let neighbor_idx = self.get_node_idx(neighbor_id);
         if let Some(current_select_node) = self.selected_node {
@@ -513,9 +515,79 @@ impl SimulationController {
                             WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
                         }
                     } else {
-                        return Err("Id not found".to_string())
+                        return Err("ID not found".to_string())
                     }
                 }
+            }
+        } else {
+            return Err("No selected node".to_string());
+        }
+    }
+
+    fn validate_parse_remove_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<u8, String> {
+        if input_neighbor_id.is_empty() {
+            return Err("The input field cannot be empty".to_string());
+        }
+
+        let neighbor_id = input_neighbor_id.parse::<u8>();
+        if neighbor_id.is_err() {
+            return Err("Wrong ID format".to_string());
+        }
+
+        if let Some(current_selected_node) = self.selected_node {
+            match self.graph.node(current_selected_node).unwrap().payload() {
+                WidgetType::Drone(drone_widget) => {
+                    if let Some(pos) = self.drones.iter().position(|d| d.id == drone_widget.get_id()) {
+                        if self.drones.get(pos).unwrap().connected_node_ids.len() == 1 {
+                            return Err(format!("Cant remove last connection of drone {}!!!", drone_widget.get_id()));
+                        } else {
+                            let index = self.drones.get(pos).unwrap().connected_node_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
+                            self.drones.get_mut(pos).unwrap().connected_node_ids.remove(index);
+                            return Ok(neighbor_id.unwrap());
+                        }
+                    } else {
+                        unreachable!("credo")
+                    }
+                },
+                WidgetType::WebClient(web_client_widget) => {
+                    if let Some(pos) = self.clients.iter().position(|c| c.id == web_client_widget.get_id()) {
+                        if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
+                            return Err(format!("Cant remove last connection of drone {}!!!", web_client_widget.get_id()));
+                        } else {
+                            let index = self.clients.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
+                            self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(index);
+                            return Ok(neighbor_id.unwrap());
+                        }
+                    } else {
+                        unreachable!("credo")
+                    }
+                },
+                WidgetType::ChatClient(chat_client_widget) => {
+                    if let Some(pos) = self.clients.iter().position(|c| c.id == chat_client_widget.get_id()) {
+                        if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
+                            return Err(format!("Cant remove last connection of drone {}!!!", chat_client_widget.get_id()));
+                        } else {
+                            let index = self.clients.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
+                            self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(index);
+                            return Ok(neighbor_id.unwrap());
+                        }
+                    } else {
+                        unreachable!("credo")
+                    }
+                },
+                WidgetType::Server(server_widget) => {
+                    if let Some(pos) = self.servers.iter().position(|s| s.id == server_widget.get_id()) {
+                        if self.servers.get(pos).unwrap().connected_drone_ids.len() == 2 {
+                            return Err(format!("Cant remove a drone from Server {} since it must have at least 2 drones connected", server_widget.get_id()));
+                        } else {
+                            let index = self.servers.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
+                            self.servers.get_mut(pos).unwrap().connected_drone_ids.remove(index);
+                            return Ok(neighbor_id.unwrap());
+                        }
+                    } else {
+                        unreachable!("credo")
+                    }
+                },
             }
         } else {
             return Err("No selected node".to_string());
@@ -668,46 +740,52 @@ impl SimulationController {
                         let remove_btn = ui.add(Button::new("Remove sender"));
                         
                         if remove_btn.clicked() {
-                            let neighbor_id = self.rm_neighbor_input.parse().unwrap();
-                            let neighbor_g_idx = self.get_node_idx(neighbor_id);
-                            let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-                            let current_node_id = match current_node {
-                                WidgetType::Drone(drone_widget) => {
-                                    drone_widget.remove_neighbor(neighbor_id);
-                                    drone_widget.get_id()
-                                }
-                                WidgetType::WebClient(web_client_widget) => {
-                                    web_client_widget.remove_neighbor(neighbor_id);
-                                    web_client_widget.get_id()
-                                }
-                                WidgetType::ChatClient(chat_client_widget) => {
-                                    chat_client_widget.remove_neighbor(neighbor_id);
-                                    chat_client_widget.get_id()
-                                }
-                                WidgetType::Server(server_widget) => {
-                                    server_widget.remove_neighbor(neighbor_id);
-                                    server_widget.get_id()
-                                }
-                            };
-                            
-                            let other_node =
-                            self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
-                            match other_node {
-                                WidgetType::Drone(other_drone_widget) => {
-                                    other_drone_widget.remove_neighbor(current_node_id);
-                                }
-                                WidgetType::WebClient(other_web_client_widget) => {
-                                    other_web_client_widget.remove_neighbor(current_node_id);
-                                }
-                                WidgetType::ChatClient(other_chat_client_widget) => {
-                                    other_chat_client_widget.remove_neighbor(current_node_id);
-                                }
-                                WidgetType::Server(other_server_widget) => {
-                                    other_server_widget.remove_neighbor(current_node_id);
-                                }
+                            match self.validate_parse_remove_neighbor_id(&self.rm_neighbor_input.clone()) {
+                                Ok(neighbor_id) => {
+                                    self.rm_neighbor_error = String::new();
+                                    let neighbor_g_idx = self.get_node_idx(neighbor_id);
+                                    let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+                                    let current_node_id = match current_node {
+                                        WidgetType::Drone(drone_widget) => {
+                                            drone_widget.remove_neighbor(neighbor_id);
+                                            drone_widget.get_id()
+                                        }
+                                        WidgetType::WebClient(web_client_widget) => {
+                                            web_client_widget.remove_neighbor(neighbor_id);
+                                            web_client_widget.get_id()
+                                        }
+                                        WidgetType::ChatClient(chat_client_widget) => {
+                                            chat_client_widget.remove_neighbor(neighbor_id);
+                                            chat_client_widget.get_id()
+                                        }
+                                        WidgetType::Server(server_widget) => {
+                                            server_widget.remove_neighbor(neighbor_id);
+                                            server_widget.get_id()
+                                        }
+                                    };
+                                    
+                                    let other_node =
+                                    self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
+                                    match other_node {
+                                        WidgetType::Drone(other_drone_widget) => {
+                                            other_drone_widget.remove_neighbor(current_node_id);
+                                        }
+                                        WidgetType::WebClient(other_web_client_widget) => {
+                                            other_web_client_widget.remove_neighbor(current_node_id);
+                                        }
+                                        WidgetType::ChatClient(other_chat_client_widget) => {
+                                            other_chat_client_widget.remove_neighbor(current_node_id);
+                                        }
+                                        WidgetType::Server(other_server_widget) => {
+                                            other_server_widget.remove_neighbor(current_node_id);
+                                        }
+                                    }
+                                    
+                                    self.graph.remove_edges_between(idx, neighbor_g_idx.unwrap());
+
+                                },
+                                Err(error) => self.rm_neighbor_error = error,
                             }
-                            
-                            self.graph.remove_edges_between(idx, neighbor_g_idx.unwrap());
                         }
                     });
                 });
