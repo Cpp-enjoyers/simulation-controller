@@ -7,6 +7,7 @@ pub struct DroneWidget {
     id: NodeId,
     command_ch: Sender<DroneCommand>,
     pdr_input: String,
+    is_pdr_invalid: bool,
 }
 
 impl DroneWidget {
@@ -18,6 +19,7 @@ impl DroneWidget {
             id,
             command_ch,
             pdr_input: String::default(),
+            is_pdr_invalid: false,
         }
     }
 
@@ -34,6 +36,19 @@ impl DroneWidget {
     pub fn get_id(&self) -> NodeId {
         self.id
     }
+
+    fn validate_parse_pdr(&self, input_pdr: &String) -> Option<f32> {
+        if input_pdr.is_empty() {
+            return None;
+        }
+
+        let pdr = input_pdr.parse::<f32>().unwrap();
+        if pdr < 0.0 || pdr > 1.0 {
+            return None;
+        }
+
+        Some(pdr)
+    }
 }
 
 
@@ -44,8 +59,19 @@ impl Widget for &mut DroneWidget {
             ui.label("Change PDR");
             ui.text_edit_singleline(&mut self.pdr_input);
             if ui.button("Send").clicked() {
-                let cmd = DroneCommand::SetPacketDropRate(self.pdr_input.parse().unwrap());
-                self.command_ch.send(cmd).expect("msg not sent");
+                match self.validate_parse_pdr(&self.pdr_input) {
+                    Some(pdr) => {
+                        self.is_pdr_invalid = false;
+                        let cmd = DroneCommand::SetPacketDropRate(pdr);
+                        self.command_ch.send(cmd).expect("msg not sent");
+                    }
+                    None => self.is_pdr_invalid = true,
+
+                }
+            }
+
+            if self.is_pdr_invalid {
+                ui.label(RichText::new("Invalid or empty PDR field!").color(Color32::RED));
             }
 
             ui.separator();
