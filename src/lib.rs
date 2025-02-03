@@ -453,11 +453,18 @@ impl SimulationController {
                         None => return Err("ID not found".to_string()),
                     }
                 },
-                WidgetType::Server(_) => {
+                WidgetType::Server(server_widget) => {
                     // Server can have an undefinite number of drones (min. 2)
                     if neighbor_idx.is_some() {
                         match self.graph.node(neighbor_idx.unwrap()).unwrap().payload() {
-                            WidgetType::Drone(_) => return Ok(neighbor_id),
+                            WidgetType::Drone(_) => {
+                                if let Some(pos) = self.servers.iter().position(|s| s.id == server_widget.get_id()) {
+                                    self.servers.get_mut(pos).unwrap().connected_drone_ids.push(neighbor_id);
+                                    return Ok(neighbor_id)
+                                } else {
+                                    unreachable!("credo sia unreachable");
+                                }
+                            },
                             WidgetType::WebClient(_) => return Err("A server can only be connected with a drone".to_string()),
                             WidgetType::ChatClient(_) => return Err("A server can only be connected with a drone".to_string()),
                             WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
