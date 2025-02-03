@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common::slc_commands::{ServerType, WebClientCommand};
 use crossbeam_channel::Sender;
-use egui::{Label, Sense, Ui, Widget};
+use egui::{Label, RichText, Sense, Ui, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
 #[derive(Clone, Debug)]
@@ -11,9 +11,8 @@ pub struct WebClientWidget {
     command_ch: Sender<WebClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
     id_input: String,
+    is_id_invalid: bool,
     list_of_files: HashMap<NodeId, Vec<String>>,
-    chat_server_id: String,
-    list_of_connected_users: Vec<NodeId>,
 }
 
 impl WebClientWidget {
@@ -26,9 +25,8 @@ impl WebClientWidget {
             command_ch,
             servers_types: HashMap::default(),
             id_input: String::default(),
+            is_id_invalid: false,
             list_of_files: HashMap::default(),
-            chat_server_id: String::default(),
-            list_of_connected_users: Vec::default(),
         }
     }
 
@@ -50,12 +48,24 @@ impl WebClientWidget {
         self.servers_types = server_types;
     }
 
-    pub fn add_connected_users(&mut self, users_id: Vec<NodeId>) {
-        self.list_of_connected_users = users_id;
-    }
-
     pub fn get_id(&self) -> NodeId {
         self.id
+    }
+
+    fn validate_parse_id(&self, input_id: &String) -> Option<NodeId> {
+        if input_id.is_empty() {
+            return None;
+        }
+
+        let id = input_id.parse::<NodeId>().unwrap();
+
+        if self.servers_types.contains_key(&id) {
+            Some(id)
+        } else {
+            None
+        }
+
+
     }
 }
 
@@ -83,8 +93,18 @@ impl Widget for &mut WebClientWidget {
             ui.label("Ask for Server files");
             ui.text_edit_singleline(&mut self.id_input);
             if ui.button("Send").clicked() {
-                let cmd = WebClientCommand::AskListOfFiles(self.id_input.parse().unwrap());
-                self.command_ch.send(cmd).expect("msg not sent");
+                match self.validate_parse_id(&self.id_input) {
+                    Some(id) => {
+                        self.is_id_invalid = false;
+                        let cmd = WebClientCommand::AskListOfFiles(id);
+                        self.command_ch.send(cmd).expect("msg not sent");
+                    },
+                    None => self.is_id_invalid = true,
+                }
+            }
+
+            if self.is_id_invalid {
+                ui.label(RichText::new("Invalid or empty id field!").color(egui::Color32::RED));
             }
 
             ui.separator();
