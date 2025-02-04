@@ -779,7 +779,7 @@ impl SimulationController {
 
                         // Display the error label
                         if !self.rm_neighbor_error.is_empty() {
-                            ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
+                            ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
                         }
                     });
                 });
