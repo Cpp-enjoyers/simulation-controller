@@ -28,6 +28,11 @@ enum Events {
     ServerEvent(ServerEvent),
 }
 
+enum UpdateType {
+    Add,
+    Remove
+}
+
 pub fn run(id: NodeId,
     drones_channels: HashMap<
         NodeId,
@@ -431,6 +436,31 @@ impl SimulationController {
         }
     }
 
+    fn update_neighborhood(&mut self, update_type: UpdateType, source_id: u8, source_idx: NodeIndex, n_id: u8) {
+        match update_type {
+            UpdateType::Add => {
+                match self.graph.node(source_idx).unwrap().payload() {
+                    WidgetType::Drone(_) => {
+                        if let Some(pos) = self.drones.iter().position(|d| d.id == source_id) {
+                            self.drones[pos].connected_node_ids.push(n_id.clone());
+                        }
+                    },
+                    WidgetType::Server(_) => {
+                        if let Some(pos) = self.servers.iter().position(|d| d.id == source_id) {
+                            self.servers[pos].connected_drone_ids.push(n_id.clone());
+                        }
+                    },
+                    _ => {
+                        if let Some(pos) = self.clients.iter().position(|d| d.id == source_id) {
+                            self.clients[pos].connected_drone_ids.push(n_id.clone());
+                        }
+                    }
+                }
+            },
+            UpdateType::Remove => todo!(),
+        }
+    }
+
     /**
      * Here I should validate the input and parse it to a NodeId
      * The input shouldn't be empty and should be a number
@@ -439,85 +469,59 @@ impl SimulationController {
      * If the current node is either a client or a server, the neighbor must be a drone
      * Lastly, the neighbor must exist in the graph
      */
-    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<u8, String> {
+    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<(u8, NodeIndex), String> {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
         }
-        // if the parsing goes wrong... rico kaboom
-        let neighbor_id = input_neighbor_id.parse::<u8>().unwrap();
-        let neighbor_idx = self.get_node_idx(neighbor_id);
+
+        // Parse the input to u8, return error if parsing goes wrong
+        let neighbor_id = match input_neighbor_id.parse::<u8>(){
+            Ok(id) => id,
+            Err(_) => return Err("Wrong ID format".to_string()),
+        };
+        // From the u8 id, retrieve the corresponding NodeIndex in the graph
+        let neighbor_idx = match self.get_node_idx(neighbor_id) {
+            Some(id) => id,
+            None => return Err("ID not found in te graph".to_string()),
+        };
+
         if let Some(current_select_node) = self.selected_node {
-            match self.graph.node(current_select_node).unwrap().payload() {
-                WidgetType::Drone(_) => {
-                    // A drone can be connected to every type of node
-                    match neighbor_idx {
-                        Some(_) => return Ok(neighbor_id),
-                        None => return Err("ID not found".to_string()),
-                    }
-                },
-                WidgetType::Server(server_widget) => {
-                    // Server can have an undefinite number of drones (min. 2)
-                    if neighbor_idx.is_some() {
-                        match self.graph.node(neighbor_idx.unwrap()).unwrap().payload() {
-                            WidgetType::Drone(_) => {
-                                if let Some(pos) = self.servers.iter().position(|s| s.id == server_widget.get_id()) {
-                                    self.servers.get_mut(pos).unwrap().connected_drone_ids.push(neighbor_id);
-                                    return Ok(neighbor_id)
-                                } else {
-                                    unreachable!("credo sia unreachable");
-                                }
-                            },
-                            WidgetType::WebClient(_) => return Err("A server can only be connected with a drone".to_string()),
-                            WidgetType::ChatClient(_) => return Err("A server can only be connected with a drone".to_string()),
-                            WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
+            match (self.graph.node(current_select_node).unwrap().payload(), self.graph.node(neighbor_idx).unwrap().payload()) {
+                (WidgetType::Drone(_), _) => return Ok((neighbor_id, neighbor_idx)),
+
+                // Web Client - check if current client has reached it max number of connections (2)
+                (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_)) => {
+                    let client_id = web_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
+                        // Check if the current client has reached its max number of connections
+                        if self.clients[pos].connected_drone_ids.len() == 2 {
+                            return Err(format!("Client {}, reached its max connections", client_id));
+                        } else {
+                            return Ok((neighbor_id, neighbor_idx));
                         }
-                    } else {
-                        return Err("Id not found".to_string())
-                    }
+                    } else { return Err("Client not found".to_string()) }
                 },
-                // While adding a drone to a client, I must check if it has already 2 drones connected to it
-                WidgetType::WebClient(web_client_widget) => {
-                    if neighbor_idx.is_some() {
-                        match self.graph.node(neighbor_idx.unwrap()).unwrap().payload() {
-                            WidgetType::Drone(_) => {
-                                if let Some(pos) = self.clients.iter().position(|c| c.id == web_client_widget.get_id()) {
-                                    if self.clients.get(pos).unwrap().connected_drone_ids.len() == 2 {
-                                        return Err(format!("Client {}, reached its max connections", web_client_widget.get_id()))
-                                    } else {
-                                        self.clients.get_mut(pos).unwrap().connected_drone_ids.push(neighbor_id);
-                                        return Ok(neighbor_id)
-                                    }
-                                } else { unreachable!("credo sia unreachable") }
-                            },
-                            WidgetType::WebClient(_) => return Err("A client can only be connected with a drone".to_string()),
-                            WidgetType::ChatClient(_) => return Err("A client can only be connected with a drone".to_string()),
-                            WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
+                // Here I include all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
+                (WidgetType::WebClient(_), _) => return Err("Client cannot be connected directly to other client nor server".to_string()),
+                
+                // Chat Clients - check if current client has reached it max number of connections (2)
+                (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_)) => {
+                    let client_id = chat_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
+                        // Check if the current client has reached its max number of connections
+                        if self.clients[pos].connected_drone_ids.len() == 2 {
+                            return Err(format!("Client {}, reached its max connections", client_id));
+                        } else {
+                            return Ok((neighbor_id, neighbor_idx));
                         }
-                    } else {
-                        return Err("Id not found".to_string())
-                    }
+                    } else { return Err("Client not found".to_string()) }
                 },
-                WidgetType::ChatClient(chat_client_widget) => {
-                    if neighbor_idx.is_some() {
-                        match self.graph.node(neighbor_idx.unwrap()).unwrap().payload() {
-                            WidgetType::Drone(_) => {
-                                if let Some(pos) = self.clients.iter().position(|c| c.id == chat_client_widget.get_id()) {
-                                    if self.clients.get(pos).unwrap().connected_drone_ids.len() == 2 {
-                                        return Err(format!("Client {}, reached its max connections", chat_client_widget.get_id()))
-                                    } else {
-                                        self.clients.get_mut(pos).unwrap().connected_drone_ids.push(neighbor_id);
-                                        return Ok(neighbor_id)
-                                    }
-                                } else { unreachable!("credo sia unreachable") }
-                            },
-                            WidgetType::WebClient(_) => return Err("A client can only be connected with a drone".to_string()),
-                            WidgetType::ChatClient(_) => return Err("A client can only be connected with a drone".to_string()),
-                            WidgetType::Server(_) => return Err("A server can only be connected with a drone".to_string()),
-                        }
-                    } else {
-                        return Err("ID not found".to_string())
-                    }
-                }
+                // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
+                (WidgetType::ChatClient(_), _) => return Err("Client cannot be connected directly to other client nor server".to_string()),
+                
+                // Servers - can be connected to any number of drones (but min. 2)
+                (WidgetType::Server(_), WidgetType::Drone(_)) => return Ok((neighbor_id, neighbor_idx)),
+                (WidgetType::Server(_), _) => return Err("Server cannot be connected directly to other client nor server".to_string()),
             }
         } else {
             return Err("No selected node".to_string());
@@ -554,9 +558,17 @@ impl SimulationController {
                         if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
                             return Err(format!("Cant remove last connection of drone {}!!!", web_client_widget.get_id()));
                         } else {
-                            let index = self.clients.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
-                            self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(index);
-                            return Ok(neighbor_id.unwrap());
+                            // TODO: handle this also in other variants
+                            if let Some(client_pos) = self.clients.get(pos) {
+                                if let Some(to_remove) = client_pos.connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()) {
+                                    self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(to_remove);
+                                    return Ok(neighbor_id.unwrap());
+                                } else {
+                                    return Err("Drone not found".to_string());
+                                }
+                            } else {
+                                return Err("Client not found".to_string());
+                            }
                         }
                     } else {
                         unreachable!("credo")
@@ -647,12 +659,11 @@ impl SimulationController {
                         let add_btn = ui.add(Button::new("Add sender"));
                         if add_btn.clicked() {
                             match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-                                Ok(neighbor_id) => {
+                                Ok((neighbor_id, neighbor_idx)) => {
                                     self.add_neighbor_error = String::new();
                                     // get the NodeIndex of the neighbor and a clone of its Sender
-                                    let neighbor_g_idx = self.get_node_idx(neighbor_id);
                                     let neighbor_send_ch =
-                                    match self.graph.node(neighbor_g_idx.unwrap()).unwrap().payload() {
+                                    match self.graph.node(neighbor_idx).unwrap().payload() {
                                         WidgetType::Drone(_) => {
                                             self.drones_channels[&neighbor_id].2.clone()
                                         }
@@ -688,38 +699,13 @@ impl SimulationController {
                                         ),
                                     };
 
-                                    match current_node {
-                                        WidgetType::Drone(drone_widget) => {
-                                            drone_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                        }
-                                        WidgetType::WebClient(web_client_widget) => {
-                                            web_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                        }
-                                        WidgetType::ChatClient(chat_client_widget) => {
-                                            chat_client_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                        }
-                                        WidgetType::Server(server_widget) => {
-                                            server_widget.add_neighbor(neighbor_id, neighbor_send_ch);
-                                        }
-                                    }
-
-                                    let other_node =
-                                    self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
-                                    match other_node {
-                                        WidgetType::Drone(other_drone_widget) => {
-                                            other_drone_widget.add_neighbor(current_node_id, current_send_ch);
-                                        }
-                                        WidgetType::WebClient(other_web_client_widget) => {
-                                            other_web_client_widget.add_neighbor(current_node_id, current_send_ch);
-                                        }
-                                        WidgetType::ChatClient(other_chat_client_widget) => {
-                                            other_chat_client_widget.add_neighbor(current_node_id, current_send_ch);
-                                        }
-                                        WidgetType::Server(other_server_widget) => {
-                                            other_server_widget.add_neighbor(current_node_id, current_send_ch);
-                                        }
-                                    }
-                                    self.graph.add_edge(idx, neighbor_g_idx.unwrap(), ());
+                                    current_node.add_neighbor_helper(neighbor_id, neighbor_send_ch);
+                                    let other_node_widget =
+                                    self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+                                    other_node_widget.add_neighbor_helper(current_node_id, current_send_ch);
+                                    self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
+                                    self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+                                    self.graph.add_edge(idx, neighbor_idx, ());
                                 },
                                 Err(error) => self.add_neighbor_error = error,
                             }
