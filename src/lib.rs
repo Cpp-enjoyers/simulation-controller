@@ -781,7 +781,8 @@ impl SimulationController {
                 .with_interactions(
                     &SettingsInteraction::new()
                     .with_node_selection_enabled(true)
-                    .with_dragging_enabled(true),
+                    .with_dragging_enabled(true)
+                    .with_edge_selection_enabled(true),
                 )
                 .with_styles(&SettingsStyle::new().with_labels_always(true))
                 .with_navigations(&SettingsNavigation::new().with_zoom_and_pan_enabled(true));
