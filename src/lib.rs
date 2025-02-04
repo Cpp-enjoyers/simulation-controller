@@ -641,10 +641,12 @@ impl SimulationController {
                 LayoutRandom,
             > = &mut GraphView::new(&mut self.graph)
                 .with_interactions(
-                    &SettingsInteraction::default().with_node_selection_enabled(true),
+                    &SettingsInteraction::new()
+                    .with_node_selection_enabled(true)
+                    .with_dragging_enabled(true),
                 )
-                .with_styles(&SettingsStyle::default().with_labels_always(true))
-                .with_navigations(&SettingsNavigation::default().with_zoom_and_pan_enabled(true));
+                .with_styles(&SettingsStyle::new().with_labels_always(true))
+                .with_navigations(&SettingsNavigation::new().with_zoom_and_pan_enabled(true));
             ui.add(graph_widget);       
         });
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
