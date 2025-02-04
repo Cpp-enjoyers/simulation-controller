@@ -457,7 +457,31 @@ impl SimulationController {
                     }
                 }
             },
-            UpdateType::Remove => todo!(),
+            UpdateType::Remove => {
+                match self.graph.node(source_idx).unwrap().payload() {
+                    WidgetType::Drone(_) => {
+                        if let Some(pos) = self.drones.iter().position(|d| d.id == source_id) {
+                            if let Some(to_remove) = self.drones[pos].connected_node_ids.iter().position(|id| *id == n_id) {
+                                self.drones[pos].connected_node_ids.remove(to_remove);
+                            }
+                        }
+                    },
+                    WidgetType::Server(_) => {
+                        if let Some(pos) = self.servers.iter().position(|s| s.id == source_id) {
+                            if let Some(to_remove) = self.servers[pos].connected_drone_ids.iter().position(|id| *id == n_id) {
+                                self.servers[pos].connected_drone_ids.remove(to_remove);
+                            }
+                        }
+                    },
+                    _ => {
+                        if let Some(pos) = self.clients.iter().position(|c| c.id == source_id) {
+                            if let Some(to_remove) = self.clients[pos].connected_drone_ids.iter().position(|id| *id == n_id) {
+                                self.clients[pos].connected_drone_ids.remove(to_remove);
+                            }
+                        }
+                    }
+                }
+            },
         }
     }
 
@@ -533,76 +557,72 @@ impl SimulationController {
         }
     }
 
-    fn validate_parse_remove_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<u8, String> {
+    fn validate_parse_remove_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<(u8, NodeIndex), String> {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
         }
 
-        let neighbor_id = input_neighbor_id.parse::<u8>();
-        if neighbor_id.is_err() {
-            return Err("Wrong ID format".to_string());
-        }
+        // Parse the input to u8, return error if parsing goes wrong
+        let neighbor_id = match input_neighbor_id.parse::<u8>(){
+            Ok(id) => id,
+            Err(_) => return Err("Wrong ID format".to_string()),
+        };
+        // From the u8 id, retrieve the corresponding NodeIndex in the graph
+        let neighbor_idx = match self.get_node_idx(neighbor_id) {
+            Some(id) => id,
+            None => return Err("ID not found in the graph".to_string()),
+        };
 
         if let Some(current_selected_node) = self.selected_node {
             match self.graph.node(current_selected_node).unwrap().payload() {
+                // For drones I should check if they have at least 2 connections, otherwise the graph becomes disconnected
                 WidgetType::Drone(drone_widget) => {
-                    if let Some(pos) = self.drones.iter().position(|d| d.id == drone_widget.get_id()) {
+                    let drone_id = drone_widget.get_id();
+                    if let Some(pos) = self.drones.iter().position(|d| d.id == drone_id) {
                         if self.drones.get(pos).unwrap().connected_node_ids.len() == 1 {
-                            return Err(format!("Cant remove last connection of drone {}!!!", drone_widget.get_id()));
+                            return Err(format!("Cant remove last connection of drone {}!!!", drone_id));
                         } else {
-                            let index = self.drones.get(pos).unwrap().connected_node_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
-                            self.drones.get_mut(pos).unwrap().connected_node_ids.remove(index);
-                            return Ok(neighbor_id.unwrap());
+                            return Ok((neighbor_id, neighbor_idx));
                         }
                     } else {
-                        unreachable!("credo")
+                        return Err("Drone not found".to_string());
                     }
                 },
+                // For clients I should check that they are connected to at least 1 drone
                 WidgetType::WebClient(web_client_widget) => {
-                    if let Some(pos) = self.clients.iter().position(|c| c.id == web_client_widget.get_id()) {
+                    let client_id = web_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
                         if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                            return Err(format!("Cant remove last connection of drone {}!!!", web_client_widget.get_id()));
+                            return Err(format!("Client {} must have at least 1 connection!", client_id));
                         } else {
-                            // TODO: handle this also in other variants
-                            if let Some(client_pos) = self.clients.get(pos) {
-                                if let Some(to_remove) = client_pos.connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()) {
-                                    self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(to_remove);
-                                    return Ok(neighbor_id.unwrap());
-                                } else {
-                                    return Err("Drone not found".to_string());
-                                }
-                            } else {
-                                return Err("Client not found".to_string());
-                            }
+                            return Ok((neighbor_id, neighbor_idx));
                         }
                     } else {
-                        unreachable!("credo")
+                        return Err("Client not found".to_string());
                     }
                 },
                 WidgetType::ChatClient(chat_client_widget) => {
-                    if let Some(pos) = self.clients.iter().position(|c| c.id == chat_client_widget.get_id()) {
+                    let client_id = chat_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
                         if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                            return Err(format!("Cant remove last connection of drone {}!!!", chat_client_widget.get_id()));
+                            return Err(format!("Client {} must have at least 1 connection!", client_id));
                         } else {
-                            let index = self.clients.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
-                            self.clients.get_mut(pos).unwrap().connected_drone_ids.remove(index);
-                            return Ok(neighbor_id.unwrap());
+                            return Ok((neighbor_id, neighbor_idx));
                         }
                     } else {
-                        unreachable!("credo")
+                        return Err("Client not found".to_string());
                     }
                 },
                 WidgetType::Server(server_widget) => {
-                    if let Some(pos) = self.servers.iter().position(|s| s.id == server_widget.get_id()) {
+                    let server_id = server_widget.get_id();
+                    if let Some(pos) = self.servers.iter().position(|s| s.id == server_id) {
                         if self.servers.get(pos).unwrap().connected_drone_ids.len() == 2 {
-                            return Err(format!("Cant remove a drone from Server {} since it must have at least 2 drones connected", server_widget.get_id()));
+                            return Err(format!("Server {} must have at least 2 connections", server_id));
                         } else {
-                            let index = self.servers.get(pos).unwrap().connected_drone_ids.iter().position(|d| *d == neighbor_id.clone().unwrap()).unwrap();
-                            self.servers.get_mut(pos).unwrap().connected_drone_ids.remove(index);
-                            return Ok(neighbor_id.unwrap());
+                            return Ok((neighbor_id, neighbor_idx));
                         }
                     } else {
-                        unreachable!("credo")
+                        return Err("Server not found".to_string());
                     }
                 },
             }
@@ -734,47 +754,23 @@ impl SimulationController {
                         
                         if remove_btn.clicked() {
                             match self.validate_parse_remove_neighbor_id(&self.rm_neighbor_input.clone()) {
-                                Ok(neighbor_id) => {
+                                Ok((neighbor_id, neighbor_idx)) => {
                                     self.rm_neighbor_error = String::new();
-                                    let neighbor_g_idx = self.get_node_idx(neighbor_id);
+
+                                    // Send command to source to remove neighbor
                                     let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-                                    let current_node_id = match current_node {
-                                        WidgetType::Drone(drone_widget) => {
-                                            drone_widget.remove_neighbor(neighbor_id);
-                                            drone_widget.get_id()
-                                        }
-                                        WidgetType::WebClient(web_client_widget) => {
-                                            web_client_widget.remove_neighbor(neighbor_id);
-                                            web_client_widget.get_id()
-                                        }
-                                        WidgetType::ChatClient(chat_client_widget) => {
-                                            chat_client_widget.remove_neighbor(neighbor_id);
-                                            chat_client_widget.get_id()
-                                        }
-                                        WidgetType::Server(server_widget) => {
-                                            server_widget.remove_neighbor(neighbor_id);
-                                            server_widget.get_id()
-                                        }
-                                    };
+                                    let current_node_id = current_node.get_id_helper();
+                                    current_node.rm_neighbor_helper(neighbor_id);
                                     
-                                    let other_node =
-                                    self.graph.node_mut(neighbor_g_idx.unwrap()).unwrap().payload_mut();
-                                    match other_node {
-                                        WidgetType::Drone(other_drone_widget) => {
-                                            other_drone_widget.remove_neighbor(current_node_id);
-                                        }
-                                        WidgetType::WebClient(other_web_client_widget) => {
-                                            other_web_client_widget.remove_neighbor(current_node_id);
-                                        }
-                                        WidgetType::ChatClient(other_chat_client_widget) => {
-                                            other_chat_client_widget.remove_neighbor(current_node_id);
-                                        }
-                                        WidgetType::Server(other_server_widget) => {
-                                            other_server_widget.remove_neighbor(current_node_id);
-                                        }
-                                    }
+                                    // Send command to neighbor to remove source
+                                    let other_node = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+                                    other_node.rm_neighbor_helper(current_node_id);
                                     
-                                    self.graph.remove_edges_between(idx, neighbor_g_idx.unwrap());
+                                    // Update state of SCL
+                                    self.update_neighborhood(UpdateType::Remove, current_node_id, idx, neighbor_id);
+                                    self.update_neighborhood(UpdateType::Remove, neighbor_id, neighbor_idx, current_node_id);
+                                    // Update graph visualization
+                                    self.graph.remove_edges_between(idx, neighbor_idx);
 
                                 },
                                 Err(error) => self.rm_neighbor_error = error,
