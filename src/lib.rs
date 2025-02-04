@@ -561,8 +561,7 @@ impl SimulationController {
         let mut copy_graph = self.graph.clone();
         copy_graph.remove_edges_between(source_idx, neighbor_idx);
         let vec = petgraph::algo::tarjan_scc(&copy_graph.g);
-        println!("Graph after removing edge has {} CC", vec.len());
-        false
+        vec.len() > 1 // Means that there are more than 1 CC, so the graph is disconnected
     }
 
     /**
@@ -590,8 +589,10 @@ impl SimulationController {
         };
 
         if let Some(current_selected_node) = self.selected_node {
-            // Here we can check if the graph would become disconnected
-            let _ = self.is_graph_disconnected(current_selected_node, neighbor_idx);
+            // Here we check if the graph would become disconnected
+            if self.is_graph_disconnected(current_selected_node, neighbor_idx) {
+                return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
+            }
             match self.graph.node(current_selected_node).unwrap().payload() {
                 // For drones I should check if they have at least 2 connections, otherwise the graph becomes disconnected
                 WidgetType::Drone(drone_widget) => {
