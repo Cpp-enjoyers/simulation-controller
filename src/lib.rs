@@ -487,7 +487,12 @@ impl SimulationController {
 
         if let Some(current_select_node) = self.selected_node {
             match (self.graph.node(current_select_node).unwrap().payload(), self.graph.node(neighbor_idx).unwrap().payload()) {
-                (WidgetType::Drone(_), _) => return Ok((neighbor_id, neighbor_idx)),
+                (WidgetType::Drone(drone_widget), _) => {
+                    if drone_widget.get_id() == neighbor_id {
+                        return Err("Can't create a connection to itself".to_string())
+                    }
+                    return Ok((neighbor_id, neighbor_idx))
+                },
 
                 // Web Client - check if current client has reached it max number of connections (2)
                 (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_)) => {
