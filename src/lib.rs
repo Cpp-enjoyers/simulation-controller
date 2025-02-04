@@ -9,7 +9,7 @@ use egui_graphs::{
     SettingsStyle,
 };
 use petgraph::{
-    stable_graph::{NodeIndex, StableUnGraph}, Undirected
+    graph::EdgeIndex, stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
 use std::{collections::{HashMap, HashSet}, fs::File, io::Write, path::Path};
 use wg_2024::{
@@ -19,7 +19,7 @@ use wg_2024::{
     packet::Packet,
 };
 mod widgets;
-use widgets::{drone_widget::DroneWidget, web_client_widget::WebClientWidget, server_widget::ServerWidget, WidgetType};
+use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, server_widget::ServerWidget, web_client_widget::WebClientWidget, WidgetType};
 
 #[derive(Clone, Debug)]
 enum Events {
@@ -93,22 +93,28 @@ pub fn run(id: NodeId,
 
 type DChannels<'a> = &'a HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
 type WCChannels<'a> = &'a HashMap<NodeId, (Sender<WebClientCommand>, Receiver<WebClientEvent>, Sender<Packet>, Receiver<Packet>)>;
+type CCChannels<'a> = &'a HashMap<NodeId, (Sender<ChatClientCommand>, Receiver<ChatClientEvent>, Sender<Packet>, Receiver<Packet>)>;
 type SChannels<'a> = &'a HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>;
-fn generate_graph(dh: DChannels, ch: WCChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
+fn generate_graph(dh: DChannels, wch: WCChannels, cch: CCChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
-
+    // Create drone widgets
     for (id, channels) in dh {
         let idx = g.add_node(WidgetType::Drone(DroneWidget::new(*id, channels.0.clone())));
         h.insert(*id, idx);
     }
-
-    for (id, channels) in ch {
+    // Create web client widgets
+    for (id, channels) in wch {
         let idx = g.add_node(WidgetType::WebClient(WebClientWidget::new(*id, channels.0.clone())));
         h.insert(*id, idx);
     }
-
+    // Create chat client widgets
+    for (id, channels) in cch {
+        let idx = g.add_node(WidgetType::ChatClient(ChatClientWidget::new(*id, channels.0.clone())));
+        h.insert(*id, idx);
+    }
+    // Create server widgets
     for (id, channels) in sh {
         let idx = g.add_node(WidgetType::Server(ServerWidget {
             id: *id,
@@ -211,6 +217,7 @@ struct SimulationController {
     servers: Vec<Server>,
     graph: Graph<WidgetType, (), Undirected>,
     selected_node: Option<NodeIndex>,
+    selected_edge: Option<EdgeIndex>,
     add_neighbor_input: String,
     add_neighbor_error: String,
     rm_neighbor_input: String,
@@ -260,7 +267,7 @@ impl SimulationController {
         clients: Vec<Client>,
         servers: Vec<Server>,
     ) -> Self {
-        let graph = generate_graph(&drones_channels, &web_clients_channels, &servers_channels, &drones, &clients, &servers);
+        let graph = generate_graph(&drones_channels, &web_clients_channels, &chat_clients_channels, &servers_channels, &drones, &clients, &servers);
         SimulationController {
             id,
             drones_channels,
@@ -272,6 +279,7 @@ impl SimulationController {
             servers,
             graph,
             selected_node: Option::default(),
+            selected_edge: Option::default(),
             add_neighbor_input: String::default(),
             add_neighbor_error: String::default(),
             rm_neighbor_input: String::default(),
@@ -557,13 +565,94 @@ impl SimulationController {
         }
     }
 
+    /**
+     * This function checks whether the graph would become disconnected
+     * by removing the edge between source_idx and neighbor_idx
+     */
     fn is_graph_disconnected(&self, source_idx: NodeIndex, neighbor_idx: NodeIndex) -> bool {
         let mut copy_graph = self.graph.clone();
         copy_graph.remove_edges_between(source_idx, neighbor_idx);
-        let vec = petgraph::algo::tarjan_scc(&copy_graph.g);
-        vec.len() > 1 // Means that there are more than 1 CC, so the graph is disconnected
+        let cc = petgraph::algo::tarjan_scc(&copy_graph.g);
+        cc.len() > 1 // Means that there are more than 1 CC, so the graph is disconnected
     }
 
+    fn can_remove_sender(&self, node_idx: NodeIndex) -> Result<u8, String> {
+        match self.graph.node(node_idx).unwrap().payload() {
+            // For drones I should check if they have at least 1 connection, otherwise the graph becomes disconnected
+            WidgetType::Drone(drone_widget) => {
+                let drone_id = drone_widget.get_id();
+                if let Some(pos) = self.drones.iter().position(|d| d.id == drone_id) {
+                    if self.drones.get(pos).unwrap().connected_node_ids.len() == 1 {
+                        return Err(format!("Cant remove last connection of drone {}!!!", drone_id));
+                    } else {
+                        return Ok(drone_id);
+                    }
+                } else {
+                    return Err("Drone not found".to_string());
+                }
+            },
+            // For clients I should check that they are connected to at least 1 drone
+            WidgetType::WebClient(web_client_widget) => {
+                let client_id = web_client_widget.get_id();
+                if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
+                    if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
+                        return Err(format!("Client {} must have at least 1 connection!", client_id));
+                    } else {
+                        return Ok(client_id);
+                    }
+                } else {
+                    return Err("Client not found".to_string());
+                }
+            },
+            WidgetType::ChatClient(chat_client_widget) => {
+                let client_id = chat_client_widget.get_id();
+                if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
+                    if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
+                        return Err(format!("Client {} must have at least 1 connection!", client_id));
+                    } else {
+                        return Ok(client_id);
+                    }
+                } else {
+                    return Err("Client not found".to_string());
+                }
+            },
+            WidgetType::Server(server_widget) => {
+                let server_id = server_widget.get_id();
+                if let Some(pos) = self.servers.iter().position(|s| s.id == server_id) {
+                    if self.servers.get(pos).unwrap().connected_drone_ids.len() == 2 {
+                        return Err(format!("Server {} must have at least 2 connections", server_id));
+                    } else {
+                        return Ok(server_id);
+                    }
+                } else {
+                    return Err("Server not found".to_string());
+                }
+            },
+        }
+    }
+
+    // idea:
+    // prendo i due endpoints (NodeIndex, NodeIndex)
+    // controllo se togliendo arco ottengo grafo disconnesso:
+    //  - si -> torno errore
+    //  - no -> procedo con il controllo
+    // methodo che riceve NodeIndex e controlla se per quel nodo si può togliere una connessione
+    // uso il metodo per controllare se entrambi i nodi possono rimuovere una connessione
+    fn validate_edge_removal(&mut self, edge: EdgeIndex) -> Result<(u8, u8), String> {
+        // Take the 2 endpoints of the edge to be removed
+        let (node_1, node_2) = self.graph.edge_endpoints(edge).unwrap();
+
+        if self.is_graph_disconnected(node_1, node_2) {
+            return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
+        }
+
+        match (self.can_remove_sender(node_1), self.can_remove_sender(node_2)) {
+            (Ok(id_1), Ok(id_2)) => Ok((id_1, id_2)),
+            (Ok(_), Err(e)) => Err(e),
+            (Err(e), Ok(_)) => Err(e),
+            (Err(_), Err(_)) => Err("Either nodes can't remove each other".to_string()),
+        }
+    }
     /**
      * Method to check whether a node can remove a sender or not
      * Base checks that should be verified before removing, for each type of widget:
@@ -594,7 +683,7 @@ impl SimulationController {
                 return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
             }
             match self.graph.node(current_selected_node).unwrap().payload() {
-                // For drones I should check if they have at least 2 connections, otherwise the graph becomes disconnected
+                // For drones I should check if they have at least 1 connection, otherwise the graph becomes disconnected
                 WidgetType::Drone(drone_widget) => {
                     let drone_id = drone_widget.get_id();
                     if let Some(pos) = self.drones.iter().position(|d| d.id == drone_id) {
@@ -655,6 +744,11 @@ impl SimulationController {
             let idx = self.graph.selected_nodes().first().unwrap();
             self.selected_node = Some(*idx);
         }
+
+        if !self.graph.selected_edges().is_empty() {
+            let edge_idx = self.graph.selected_edges().first().unwrap();
+            self.selected_edge = Some(*edge_idx);
+        }
     }
 
     fn render(&mut self, ctx: &egui::Context) {
@@ -694,114 +788,149 @@ impl SimulationController {
             ui.add(graph_widget);       
         });
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
-            if let Some(idx) = self.selected_node {
-                ui.label(format!("Selected node: {:?}", idx));
-                ui.horizontal(|ui| {
-                    // Buttons to add/remove sender
-                    ui.vertical(|ui| {
-                        ui.set_max_width(71.0); // Width of the add button
-                        // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
-                        ui.text_edit_singleline(&mut self.add_neighbor_input);
-                        let add_btn = ui.add(Button::new("Add sender"));
-                        if add_btn.clicked() {
-                            match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-                                Ok((neighbor_id, neighbor_idx)) => {
-                                    self.add_neighbor_error = String::new();
-                                    // get the NodeIndex of the neighbor and a clone of its Sender
-                                    let neighbor_send_ch =
-                                    match self.graph.node(neighbor_idx).unwrap().payload() {
-                                        WidgetType::Drone(_) => {
-                                            self.drones_channels[&neighbor_id].2.clone()
-                                        }
-                                        WidgetType::WebClient(_) => {
-                                            self.web_clients_channels[&neighbor_id].2.clone()
-                                        }
-                                        WidgetType::ChatClient(_) => {
-                                            self.chat_clients_channels[&neighbor_id].2.clone()
-                                        }
-                                        WidgetType::Server(_) => {
-                                            self.servers_channels[&neighbor_id].2.clone()
-                                        }
-                                    };
+            // if let Some(idx) = self.selected_node {
+            //     ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
+            //     ui.horizontal(|ui| {
+            //         // Buttons to add/remove sender
+            //         ui.vertical(|ui| {
+            //             ui.set_max_width(71.0); // Width of the add button
+            //             // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
+            //             ui.text_edit_singleline(&mut self.add_neighbor_input);
+            //             let add_btn = ui.add(Button::new("Add sender"));
+            //             if add_btn.clicked() {
+            //                 match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
+            //                     Ok((neighbor_id, neighbor_idx)) => {
+            //                         self.add_neighbor_error = String::new();
+            //                         // get the NodeIndex of the neighbor and a clone of its Sender
+            //                         let neighbor_send_ch =
+            //                         match self.graph.node(neighbor_idx).unwrap().payload() {
+            //                             WidgetType::Drone(_) => {
+            //                                 self.drones_channels[&neighbor_id].2.clone()
+            //                             }
+            //                             WidgetType::WebClient(_) => {
+            //                                 self.web_clients_channels[&neighbor_id].2.clone()
+            //                             }
+            //                             WidgetType::ChatClient(_) => {
+            //                                 self.chat_clients_channels[&neighbor_id].2.clone()
+            //                             }
+            //                             WidgetType::Server(_) => {
+            //                                 self.servers_channels[&neighbor_id].2.clone()
+            //                             }
+            //                         };
 
-                                    let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-                                    // get the id of the current and a clone of its Sender
-                                    let (current_node_id, current_send_ch) = match current_node {
-                                        WidgetType::Drone(drone_widget) => (
-                                            drone_widget.get_id(),
-                                            self.drones_channels[&drone_widget.get_id()].2.clone(),
-                                        ),
-                                        WidgetType::WebClient(web_client_widget) => (
-                                            web_client_widget.get_id(),
-                                            self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
-                                        ),
-                                        WidgetType::ChatClient(chat_client_widget) => (
-                                            chat_client_widget.get_id(),
-                                            self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
-                                        ),
-                                        WidgetType::Server(server_widget) => (
-                                            server_widget.get_id(),
-                                            self.servers_channels[&server_widget.get_id()].2.clone(),
-                                        ),
-                                    };
+            //                         let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+            //                         // get the id of the current and a clone of its Sender
+            //                         let (current_node_id, current_send_ch) = match current_node {
+            //                             WidgetType::Drone(drone_widget) => (
+            //                                 drone_widget.get_id(),
+            //                                 self.drones_channels[&drone_widget.get_id()].2.clone(),
+            //                             ),
+            //                             WidgetType::WebClient(web_client_widget) => (
+            //                                 web_client_widget.get_id(),
+            //                                 self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
+            //                             ),
+            //                             WidgetType::ChatClient(chat_client_widget) => (
+            //                                 chat_client_widget.get_id(),
+            //                                 self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
+            //                             ),
+            //                             WidgetType::Server(server_widget) => (
+            //                                 server_widget.get_id(),
+            //                                 self.servers_channels[&server_widget.get_id()].2.clone(),
+            //                             ),
+            //                         };
 
-                                    current_node.add_neighbor_helper(neighbor_id, neighbor_send_ch);
-                                    let other_node_widget =
-                                    self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-                                    other_node_widget.add_neighbor_helper(current_node_id, current_send_ch);
-                                    self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
-                                    self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
-                                    self.graph.add_edge(idx, neighbor_idx, ());
-                                },
-                                Err(error) => self.add_neighbor_error = error,
-                            }
-                        }
+            //                         current_node.add_neighbor_helper(neighbor_id, neighbor_send_ch);
+            //                         let other_node_widget =
+            //                         self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+            //                         other_node_widget.add_neighbor_helper(current_node_id, current_send_ch);
+            //                         self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
+            //                         self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+            //                         self.graph.add_edge(idx, neighbor_idx, ());
+            //                     },
+            //                     Err(error) => self.add_neighbor_error = error,
+            //                 }
+            //             }
 
-                        // Display the potential error
-                        if !self.add_neighbor_error.is_empty() {
-                            ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
-                        }
-                    });
+            //             // Display the potential error
+            //             if !self.add_neighbor_error.is_empty() {
+            //                 ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
+            //             }
+            //         });
 
-                    ui.add_space(15.0);
+            //         ui.add_space(15.0);
 
-                    // Remove sender button
-                    ui.vertical(|ui| {
-                        ui.set_max_width(95.0); // Width of the remove button
-                        ui.text_edit_singleline(&mut self.rm_neighbor_input);
-                        let remove_btn = ui.add(Button::new("Remove sender"));
+            //         // Remove sender button
+            //         ui.vertical(|ui| {
+            //             ui.set_max_width(95.0); // Width of the remove button
+            //             ui.text_edit_singleline(&mut self.rm_neighbor_input);
+            //             let remove_btn = ui.add(Button::new("Remove sender"));
                         
-                        if remove_btn.clicked() {
-                            match self.validate_parse_remove_neighbor_id(&self.rm_neighbor_input.clone()) {
-                                Ok((neighbor_id, neighbor_idx)) => {
-                                    self.rm_neighbor_error = String::new();
+            //             if remove_btn.clicked() {
+            //                 match self.validate_parse_remove_neighbor_id(&self.rm_neighbor_input.clone()) {
+            //                     Ok((neighbor_id, neighbor_idx)) => {
+            //                         self.rm_neighbor_error = String::new();
 
-                                    // Send command to source to remove neighbor
-                                    let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-                                    let current_node_id = current_node.get_id_helper();
-                                    current_node.rm_neighbor_helper(neighbor_id);
+            //                         // Send command to source to remove neighbor
+            //                         let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
+            //                         let current_node_id = current_node.get_id_helper();
+            //                         current_node.rm_neighbor_helper(neighbor_id);
                                     
-                                    // Send command to neighbor to remove source
-                                    let other_node = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-                                    other_node.rm_neighbor_helper(current_node_id);
+            //                         // Send command to neighbor to remove source
+            //                         let other_node = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+            //                         other_node.rm_neighbor_helper(current_node_id);
                                     
-                                    // Update state of SCL
-                                    self.update_neighborhood(UpdateType::Remove, current_node_id, idx, neighbor_id);
-                                    self.update_neighborhood(UpdateType::Remove, neighbor_id, neighbor_idx, current_node_id);
-                                    // Update graph visualization
-                                    self.graph.remove_edges_between(idx, neighbor_idx);
+            //                         // Update state of SCL
+            //                         self.update_neighborhood(UpdateType::Remove, current_node_id, idx, neighbor_id);
+            //                         self.update_neighborhood(UpdateType::Remove, neighbor_id, neighbor_idx, current_node_id);
+            //                         // Update graph visualization
+            //                         self.graph.remove_edges_between(idx, neighbor_idx);
 
-                                },
-                                Err(error) => self.rm_neighbor_error = error,
-                            }
-                        }
+            //                     },
+            //                     Err(error) => self.rm_neighbor_error = error,
+            //                 }
+            //             }
 
-                        // Display the error label
-                        if !self.rm_neighbor_error.is_empty() {
-                            ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
-                        }
-                    });
-                });
+            //             // Display the error label
+            //             if !self.rm_neighbor_error.is_empty() {
+            //                 ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
+            //             }
+            //         });
+            //     });
+            // }
+            if let Some(edge_idx) = self.selected_edge {
+                ui.label(format!("Selected edge: {:?}", edge_idx));
+                let remove_btn = ui.add(Button::new("Remove edge"));
+
+                if remove_btn.clicked() {
+                    match self.validate_edge_removal(edge_idx) {
+                        Ok((node_1, node_2)) => {
+                            self.rm_neighbor_error = String::new();
+
+                            let node_1_idx = self.get_node_idx(node_1).unwrap();
+                            let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
+                            // Send command to source to remove neighbor
+                            node_1_widget.rm_neighbor_helper(node_2);
+
+
+                            let node_2_idx = self.get_node_idx(node_2).unwrap();
+                            let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();
+                            // Send command to neighbor to remove source
+                            node_2_widget.rm_neighbor_helper(node_1);
+                            
+                            // Update state of SCL
+                            self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
+                            self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
+                            // Update graph visualization
+                            self.graph.remove_edges_between(node_1_idx, node_2_idx);
+                        },
+                        Err(error) => self.rm_neighbor_error = error,
+                    }
+                }
+
+                // Display the error label
+                if !self.rm_neighbor_error.is_empty() {
+                    ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
+                }
             }
         });
     }
@@ -809,7 +938,7 @@ impl SimulationController {
 }
 
 impl eframe::App for SimulationController {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_event();
         self.read_data();
         self.render(ctx);
