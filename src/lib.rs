@@ -501,7 +501,7 @@ impl SimulationController {
      * If the current node is either a client or a server, the neighbor must be a drone
      * Lastly, the neighbor must exist in the graph
      */
-    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<(u8, NodeIndex), String> {
+    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<NodeIndex, String> {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
         }
@@ -523,7 +523,7 @@ impl SimulationController {
                     if drone_widget.get_id() == neighbor_id {
                         return Err("Can't create a connection to itself".to_string())
                     }
-                    return Ok((neighbor_id, neighbor_idx))
+                    return Ok(neighbor_idx)
                 },
 
                 // Web Client - check if current client has reached it max number of connections (2)
@@ -534,7 +534,7 @@ impl SimulationController {
                         if self.clients[pos].connected_drone_ids.len() == 2 {
                             return Err(format!("Client {}, reached its max connections", client_id));
                         } else {
-                            return Ok((neighbor_id, neighbor_idx));
+                            return Ok(neighbor_idx);
                         }
                     } else { return Err("Client not found".to_string()) }
                 },
@@ -549,7 +549,7 @@ impl SimulationController {
                         if self.clients[pos].connected_drone_ids.len() == 2 {
                             return Err(format!("Client {}, reached its max connections", client_id));
                         } else {
-                            return Ok((neighbor_id, neighbor_idx));
+                            return Ok(neighbor_idx);
                         }
                     } else { return Err("Client not found".to_string()) }
                 },
@@ -557,11 +557,20 @@ impl SimulationController {
                 (WidgetType::ChatClient(_), _) => return Err("Client cannot be connected directly to other client nor server".to_string()),
                 
                 // Servers - can be connected to any number of drones (but min. 2)
-                (WidgetType::Server(_), WidgetType::Drone(_)) => return Ok((neighbor_id, neighbor_idx)),
+                (WidgetType::Server(_), WidgetType::Drone(_)) => return Ok(neighbor_idx),
                 (WidgetType::Server(_), _) => return Err("Server cannot be connected directly to other client nor server".to_string()),
             }
         } else {
             return Err("No selected node".to_string());
+        }
+    }
+
+    fn get_sender_channel(&self, idx: NodeIndex) -> (NodeId, Sender<Packet>) {
+        match self.graph.node(idx).unwrap().payload() {
+            WidgetType::Drone(dw) => (dw.get_id(), self.drones_channels[&dw.get_id()].2.clone()),
+            WidgetType::WebClient(wcw) => (wcw.get_id(), self.web_clients_channels[&wcw.get_id()].2.clone()),
+            WidgetType::ChatClient(ccw) => (ccw.get_id(), self.chat_clients_channels[&ccw.get_id()].2.clone()),
+            WidgetType::Server(sw) => (sw.get_id(), self.servers_channels[&sw.get_id()].2.clone()),
         }
     }
 
@@ -789,6 +798,81 @@ impl SimulationController {
             ui.add(graph_widget);       
         });
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                // Add sender area
+                if let Some(idx) = self.selected_node {
+                    ui.vertical(|ui| {
+                        ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
+                        ui.text_edit_singleline(&mut self.add_neighbor_input);
+                        let add_btn = ui.add(Button::new("Add sender"));
+
+                        if add_btn.clicked() {
+                            match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
+                                Ok(neighbor_idx) => {
+                                    let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
+                                    let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
+
+                                    let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
+                                    current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
+
+                                    let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+                                    neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
+
+                                    self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
+                                    self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+                                    self.graph.add_edge(idx, neighbor_idx, ());
+                                },
+                                Err(error) => self.add_neighbor_error = error,
+                            }
+                        }
+
+                        if !self.add_neighbor_error.is_empty() {
+                            ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
+                        }
+                    });
+                }
+
+                ui.add_space(15.0);
+
+                // Remove edge area
+                if let Some(edge_idx) = self.selected_edge {
+                    ui.vertical(|ui| {
+                        ui.label(format!("Selected edge: {:?}", edge_idx));
+                        let remove_btn = ui.add(Button::new("Remove edge"));
+        
+                        if remove_btn.clicked() {
+                            match self.validate_edge_removal(edge_idx) {
+                                Ok((node_1, node_2)) => {
+                                    self.rm_neighbor_error = String::new();
+        
+                                    let node_1_idx = self.get_node_idx(node_1).unwrap();
+                                    let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
+                                    // Send command to source to remove neighbor
+                                    node_1_widget.rm_neighbor_helper(node_2);
+        
+        
+                                    let node_2_idx = self.get_node_idx(node_2).unwrap();
+                                    let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();
+                                    // Send command to neighbor to remove source
+                                    node_2_widget.rm_neighbor_helper(node_1);
+                                    
+                                    // Update state of SCL
+                                    self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
+                                    self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
+                                    // Update graph visualization
+                                    self.graph.remove_edges_between(node_1_idx, node_2_idx);
+                                },
+                                Err(error) => self.rm_neighbor_error = error,
+                            }
+                        }
+        
+                        // Display the error label
+                        if !self.rm_neighbor_error.is_empty() {
+                            ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
+                        }
+                    });
+                }
+            });
             // if let Some(idx) = self.selected_node {
             //     ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
             //     ui.horizontal(|ui| {
@@ -898,41 +982,7 @@ impl SimulationController {
             //         });
             //     });
             // }
-            if let Some(edge_idx) = self.selected_edge {
-                ui.label(format!("Selected edge: {:?}", edge_idx));
-                let remove_btn = ui.add(Button::new("Remove edge"));
-
-                if remove_btn.clicked() {
-                    match self.validate_edge_removal(edge_idx) {
-                        Ok((node_1, node_2)) => {
-                            self.rm_neighbor_error = String::new();
-
-                            let node_1_idx = self.get_node_idx(node_1).unwrap();
-                            let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
-                            // Send command to source to remove neighbor
-                            node_1_widget.rm_neighbor_helper(node_2);
-
-
-                            let node_2_idx = self.get_node_idx(node_2).unwrap();
-                            let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();
-                            // Send command to neighbor to remove source
-                            node_2_widget.rm_neighbor_helper(node_1);
-                            
-                            // Update state of SCL
-                            self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
-                            self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
-                            // Update graph visualization
-                            self.graph.remove_edges_between(node_1_idx, node_2_idx);
-                        },
-                        Err(error) => self.rm_neighbor_error = error,
-                    }
-                }
-
-                // Display the error label
-                if !self.rm_neighbor_error.is_empty() {
-                    ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
-                }
-            }
+            
         });
     }
 
