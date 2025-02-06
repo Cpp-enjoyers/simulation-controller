@@ -843,6 +843,7 @@ impl SimulationController {
                 if let Some(idx) = self.selected_node {
                     ui.vertical(|ui| {
                         ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
+                        ui.set_max_width(71.0); // Width of the add button
                         ui.text_edit_singleline(&mut self.add_neighbor_input);
                         let add_btn = ui.add(Button::new("Add sender"));
 
@@ -913,116 +914,6 @@ impl SimulationController {
                     });
                 }
             });
-            // if let Some(idx) = self.selected_node {
-            //     ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
-            //     ui.horizontal(|ui| {
-            //         // Buttons to add/remove sender
-            //         ui.vertical(|ui| {
-            //             ui.set_max_width(71.0); // Width of the add button
-            //             // ui.add_sized([btn_size.x, btn_size.y], TextEdit::singleline(&mut self.add_neighbor_input));
-            //             ui.text_edit_singleline(&mut self.add_neighbor_input);
-            //             let add_btn = ui.add(Button::new("Add sender"));
-            //             if add_btn.clicked() {
-            //                 match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-            //                     Ok((neighbor_id, neighbor_idx)) => {
-            //                         self.add_neighbor_error = String::new();
-            //                         // get the NodeIndex of the neighbor and a clone of its Sender
-            //                         let neighbor_send_ch =
-            //                         match self.graph.node(neighbor_idx).unwrap().payload() {
-            //                             WidgetType::Drone(_) => {
-            //                                 self.drones_channels[&neighbor_id].2.clone()
-            //                             }
-            //                             WidgetType::WebClient(_) => {
-            //                                 self.web_clients_channels[&neighbor_id].2.clone()
-            //                             }
-            //                             WidgetType::ChatClient(_) => {
-            //                                 self.chat_clients_channels[&neighbor_id].2.clone()
-            //                             }
-            //                             WidgetType::Server(_) => {
-            //                                 self.servers_channels[&neighbor_id].2.clone()
-            //                             }
-            //                         };
-
-            //                         let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-            //                         // get the id of the current and a clone of its Sender
-            //                         let (current_node_id, current_send_ch) = match current_node {
-            //                             WidgetType::Drone(drone_widget) => (
-            //                                 drone_widget.get_id(),
-            //                                 self.drones_channels[&drone_widget.get_id()].2.clone(),
-            //                             ),
-            //                             WidgetType::WebClient(web_client_widget) => (
-            //                                 web_client_widget.get_id(),
-            //                                 self.web_clients_channels[&web_client_widget.get_id()].2.clone(),
-            //                             ),
-            //                             WidgetType::ChatClient(chat_client_widget) => (
-            //                                 chat_client_widget.get_id(),
-            //                                 self.chat_clients_channels[&chat_client_widget.get_id()].2.clone(),
-            //                             ),
-            //                             WidgetType::Server(server_widget) => (
-            //                                 server_widget.get_id(),
-            //                                 self.servers_channels[&server_widget.get_id()].2.clone(),
-            //                             ),
-            //                         };
-
-            //                         current_node.add_neighbor_helper(neighbor_id, neighbor_send_ch);
-            //                         let other_node_widget =
-            //                         self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-            //                         other_node_widget.add_neighbor_helper(current_node_id, current_send_ch);
-            //                         self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
-            //                         self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
-            //                         self.graph.add_edge(idx, neighbor_idx, ());
-            //                     },
-            //                     Err(error) => self.add_neighbor_error = error,
-            //                 }
-            //             }
-
-            //             // Display the potential error
-            //             if !self.add_neighbor_error.is_empty() {
-            //                 ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
-            //             }
-            //         });
-
-            //         ui.add_space(15.0);
-
-            //         // Remove sender button
-            //         ui.vertical(|ui| {
-            //             ui.set_max_width(95.0); // Width of the remove button
-            //             ui.text_edit_singleline(&mut self.rm_neighbor_input);
-            //             let remove_btn = ui.add(Button::new("Remove sender"));
-                        
-            //             if remove_btn.clicked() {
-            //                 match self.validate_parse_remove_neighbor_id(&self.rm_neighbor_input.clone()) {
-            //                     Ok((neighbor_id, neighbor_idx)) => {
-            //                         self.rm_neighbor_error = String::new();
-
-            //                         // Send command to source to remove neighbor
-            //                         let current_node = self.graph.node_mut(idx).unwrap().payload_mut();
-            //                         let current_node_id = current_node.get_id_helper();
-            //                         current_node.rm_neighbor_helper(neighbor_id);
-                                    
-            //                         // Send command to neighbor to remove source
-            //                         let other_node = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-            //                         other_node.rm_neighbor_helper(current_node_id);
-                                    
-            //                         // Update state of SCL
-            //                         self.update_neighborhood(UpdateType::Remove, current_node_id, idx, neighbor_id);
-            //                         self.update_neighborhood(UpdateType::Remove, neighbor_id, neighbor_idx, current_node_id);
-            //                         // Update graph visualization
-            //                         self.graph.remove_edges_between(idx, neighbor_idx);
-
-            //                     },
-            //                     Err(error) => self.rm_neighbor_error = error,
-            //                 }
-            //             }
-
-            //             // Display the error label
-            //             if !self.rm_neighbor_error.is_empty() {
-            //                 ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
-            //             }
-            //         });
-            //     });
-            // }
-            
         });
     }
 
