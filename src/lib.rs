@@ -954,21 +954,21 @@ impl SimulationController {
                         let drone_id = drone_widget.get_id();
                         ui.vertical(|ui| {
                             ui.add(drone_widget);
-                            // ui.separator();
-                            // ui.label("Crash the drone");
-                            // let red_btn =
-                            //     ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
-                            // if red_btn.clicked() {
-                            //     // check if the drone can crash
-                            //     match self.can_drone_crash(drone_id) {
-                            //         Ok(_) => self.crash_drone(idx),
-                            //         Err(error) => self.drone_crash_error = error,
-                            //     }
-                            // }
+                            ui.separator();
+                            ui.label("Crash the drone");
+                            let red_btn =
+                                ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
+                            if red_btn.clicked() {
+                                // check if the drone can crash
+                                match self.can_drone_crash(drone_id) {
+                                    Ok(_) => self.crash_drone(idx),
+                                    Err(error) => self.drone_crash_error = error,
+                                }
+                            }
 
-                            // if !self.drone_crash_error.is_empty() {
-                            //     ui.label(RichText::new(&self.drone_crash_error).color(egui::Color32::RED));
-                            // }
+                            if !self.drone_crash_error.is_empty() {
+                                ui.label(RichText::new(&self.drone_crash_error).color(egui::Color32::RED));
+                            }
                         }).response
                     },
                     WidgetType::WebClient(web_client_widget) => ui.add(web_client_widget),
