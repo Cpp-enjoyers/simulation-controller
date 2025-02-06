@@ -385,7 +385,6 @@ impl SimulationController {
                 }
             },
             WebClientEvent::ListOfFiles(files, server_id) => {
-                println!("Client {} received list of files from server {}: {:?}", client_id, server_id, files);
                 let client_idx = self.get_node_idx(*client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
                 match client {
