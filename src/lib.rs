@@ -222,6 +222,7 @@ struct SimulationController {
     add_neighbor_error: String,
     rm_neighbor_input: String,
     rm_neighbor_error: String,
+    drone_crash_error: String,
 }
 
 impl SimulationController {
@@ -284,6 +285,7 @@ impl SimulationController {
             add_neighbor_error: String::default(),
             rm_neighbor_input: String::default(),
             rm_neighbor_error: String::default(),
+            drone_crash_error: String::default()
         }
     }
 
@@ -876,6 +878,59 @@ impl SimulationController {
         Ok(())
     }
 
+    fn crash_drone(&mut self, crashing_drone: NodeIndex) {
+        let drone = self.graph.node(crashing_drone).unwrap().payload();
+        let neighbors = self.graph.g.neighbors(crashing_drone).collect::<Vec<NodeIndex>>();
+        match drone {
+            WidgetType::Drone(drone_widget) => {
+                drone_widget.send_crash_command();
+                let crashing_drone_id = drone_widget.get_id();
+                for neighbor in neighbors {
+                    match self.graph.node(neighbor).unwrap().payload() {
+                        WidgetType::Drone(neighbor_widget) => {
+                            let id = neighbor_widget.get_id();
+                            if let Some(pos) = self.drones.iter().position(|d| d.id == id) {
+                                if let Some(to_remove) = self.drones[pos].connected_node_ids.iter().position(|id| *id == crashing_drone_id) {
+                                    self.drones[pos].connected_node_ids.remove(to_remove);
+                                }
+                            }
+                            neighbor_widget.remove_neighbor(drone_widget.get_id());
+                        },
+                        WidgetType::WebClient(neighbor_widget) => {
+                            let id = neighbor_widget.get_id();
+                            if let Some(pos) = self.clients.iter().position(|c| c.id == id) {
+                                if let Some(to_remove) = self.clients[pos].connected_drone_ids.iter().position(|id| *id == crashing_drone_id) {
+                                    self.clients[pos].connected_drone_ids.remove(to_remove);
+                                }
+                            }
+                            neighbor_widget.remove_neighbor(drone_widget.get_id());
+                        },
+                        WidgetType::ChatClient(neighbor_widget) => {
+                            let id = neighbor_widget.get_id();
+                            if let Some(pos) = self.clients.iter().position(|c| c.id == id) {
+                                if let Some(to_remove) = self.clients[pos].connected_drone_ids.iter().position(|id| *id == crashing_drone_id) {
+                                    self.clients[pos].connected_drone_ids.remove(to_remove);
+                                }
+                            }
+                            neighbor_widget.remove_neighbor(drone_widget.get_id());
+                        },
+                        WidgetType::Server(neighbor_widget) => {
+                            let id = neighbor_widget.get_id();
+                            if let Some(pos) = self.servers.iter().position(|s| s.id == id) {
+                                if let Some(to_remove) = self.servers[pos].connected_drone_ids.iter().position(|id| *id == crashing_drone_id) {
+                                    self.servers[pos].connected_drone_ids.remove(to_remove);
+                                }
+                            }
+                            neighbor_widget.remove_neighbor(drone_widget.get_id());
+                        },
+                    }
+                }
+            },
+            _ => {unreachable!("Only drones can crash")}
+        }
+        self.graph.remove_node(crashing_drone);
+    }
+
     fn read_data(&mut self) {
         if !self.graph.selected_nodes().is_empty() {
             let idx = self.graph.selected_nodes().first().unwrap();
@@ -905,11 +960,15 @@ impl SimulationController {
                             if red_btn.clicked() {
                                 // check if the drone can crash
                                 match self.can_drone_crash(drone_id) {
-                                    Ok(_) => println!("Drone can crash"),
-                                    Err(error) => println!("{}", error),
+                                    Ok(_) => self.crash_drone(idx),
+                                    Err(error) => self.drone_crash_error = error,
                                 }
                                 // if so, send the crash command
                                 // and send a remove sender command to all its neighbors
+                            }
+
+                            if !self.drone_crash_error.is_empty() {
+                                ui.label(RichText::new(&self.drone_crash_error).color(egui::Color32::RED));
                             }
                         }).response
                     },

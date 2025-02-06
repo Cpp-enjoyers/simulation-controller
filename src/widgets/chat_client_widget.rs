@@ -27,7 +27,7 @@ impl ChatClientWidget {
             .send(ChatClientCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
     }
 
-    pub fn remove_neighbor(&mut self, neighbor_id: u8) {
+    pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
             .send(ChatClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
     }

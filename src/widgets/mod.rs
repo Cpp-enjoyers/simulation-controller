@@ -37,7 +37,7 @@ impl WidgetType {
         }
     }
 
-    pub fn rm_neighbor_helper(&mut self, neighbor_id: u8) {
+    pub fn rm_neighbor_helper(&self, neighbor_id: u8) {
         match self {
             WidgetType::Drone(drone_widget) => drone_widget.remove_neighbor(neighbor_id),
             WidgetType::WebClient(web_client_widget) => web_client_widget.remove_neighbor(neighbor_id),
