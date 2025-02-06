@@ -56,7 +56,7 @@ impl WebClientWidget {
         if input_id.is_empty() {
             return None;
         }
-
+        // this can explode
         let id = input_id.parse::<NodeId>().unwrap();
 
         if self.servers_types.contains_key(&id) {
@@ -73,7 +73,7 @@ impl WebClientWidget {
 impl Widget for &mut WebClientWidget {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
-            ui.label(format!("Client {}", self.id));
+            ui.label(format!("Web Client {}", self.id));
 
             // Send command to ask for servers types
             ui.label("Ask for Server types");
