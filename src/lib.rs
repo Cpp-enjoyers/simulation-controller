@@ -11,7 +11,7 @@ use egui_graphs::{
 use petgraph::{
     graph::EdgeIndex, stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
-use std::{collections::{HashMap, HashSet}, fs::File, io::Write, path::Path};
+use std::{collections::{HashMap, HashSet, VecDeque}, fs::File, io::Write, path::Path};
 use wg_2024::{
     config::{Client, Drone, Server},
     controller::{DroneCommand, DroneEvent},
@@ -575,6 +575,42 @@ impl SimulationController {
     }
 
     /**
+     * Before removing an edge, I should check that without it, every client can still reach every server.
+     */
+    fn check_connectivity(&self, edge_to_remove: EdgeIndex) -> Result<(), String> {
+        let mut copy_graph = self.graph.clone();
+        copy_graph.remove_edge(edge_to_remove).unwrap();
+
+        // For each client, perform a DFS to check if it can reach every server
+        for client in &self.clients {
+            let client_idx = self.get_node_idx(client.id).unwrap();
+            let mut visited: HashSet<NodeIndex> = HashSet::new();
+            let mut servers_visited: HashSet<NodeId> = HashSet::new();
+            let mut stack: VecDeque<NodeIndex> = VecDeque::new();
+            stack.push_back(client_idx);
+
+            while let Some(node) = stack.pop_front() {
+                if visited.insert(node) {
+                    let neighbors = copy_graph.g.neighbors(node).collect::<Vec<NodeIndex>>();
+                    for neighbor in neighbors {
+                        if let WidgetType::Server(server_widget) = copy_graph.node(neighbor).unwrap().payload() {
+                            servers_visited.insert(server_widget.get_id());
+                        } else {
+                            stack.push_front(neighbor);
+                        }
+                    }
+                }
+            }
+
+            // Check if the client can reach every server
+            if servers_visited.len() != self.servers.len() {
+                return Err(format!("By removing edge {}, client {} wouldn't reach every server", edge_to_remove.index(), client.id));
+            }
+        }
+        Ok(())
+    }
+
+    /**
      * This function checks whether the graph would become disconnected
      * by removing the edge between source_idx and neighbor_idx
      */
@@ -648,9 +684,13 @@ impl SimulationController {
     // methodo che riceve NodeIndex e controlla se per quel nodo si può togliere una connessione
     // uso il metodo per controllare se entrambi i nodi possono rimuovere una connessione
     fn validate_edge_removal(&mut self, edge: EdgeIndex) -> Result<(u8, u8), String> {
+        
+        if let Err(e) = self.check_connectivity(edge) {
+            return Err(e);
+        }
+
         // Take the 2 endpoints of the edge to be removed
         let (node_1, node_2) = self.graph.edge_endpoints(edge).unwrap();
-
         if self.is_graph_disconnected(node_1, node_2) {
             return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
         }
