@@ -72,7 +72,6 @@ impl WebClientWidget {
 
 impl Widget for WebClientWidget {
     fn ui(mut self, ui: &mut Ui) -> egui::Response {
-        let mut input_text = ui.memory(|mem| mem.data.get_temp::<String>("id_input".into())).unwrap_or_default();
         ui.vertical(|ui| {
             ui.label(format!("Web Client {}", self.id));
 
@@ -92,10 +91,7 @@ impl Widget for WebClientWidget {
 
             // Send command to ask for files
             ui.label("Ask for Server files");
-            let input = ui.text_edit_singleline(&mut input_text);
-            if input.changed() {
-                ui.memory_mut(|mem| {mem.data.insert_temp("id_input".into(), self.id_input.clone());});
-            }
+            ui.text_edit_singleline(&mut self.id_input);
             if ui.button("Send").clicked() {
                 match self.validate_parse_id(&self.id_input) {
                     Some(id) => {
