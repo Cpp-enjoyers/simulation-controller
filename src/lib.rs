@@ -929,6 +929,7 @@ impl SimulationController {
             _ => {unreachable!("Only drones can crash")}
         }
         self.graph.remove_node(crashing_drone);
+        self.selected_node = None;
     }
 
     fn read_data(&mut self) {
