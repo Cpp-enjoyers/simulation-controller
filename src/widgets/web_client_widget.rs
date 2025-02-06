@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use common::slc_commands::{ServerType, WebClientCommand};
 use crossbeam_channel::Sender;
@@ -10,7 +10,7 @@ pub struct WebClientWidget {
     id: NodeId,
     command_ch: Sender<WebClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
-    id_input: String,
+    id_input: Rc<RefCell<String>>,
     is_id_invalid: bool,
     list_of_files: HashMap<NodeId, Vec<String>>,
 }
@@ -24,7 +24,7 @@ impl WebClientWidget {
             id,
             command_ch,
             servers_types: HashMap::default(),
-            id_input: String::default(),
+            id_input: Rc::new(RefCell::new(String::default())),
             is_id_invalid: false,
             list_of_files: HashMap::default(),
         }
@@ -91,16 +91,16 @@ impl Widget for WebClientWidget {
 
             // Send command to ask for files
             ui.label("Ask for Server files");
-            ui.text_edit_singleline(&mut self.id_input);
+            ui.text_edit_singleline(&mut *self.id_input.borrow_mut());
             if ui.button("Send").clicked() {
-                match self.validate_parse_id(&self.id_input) {
-                    Some(id) => {
-                        self.is_id_invalid = false;
-                        let cmd = WebClientCommand::AskListOfFiles(id);
-                        self.command_ch.send(cmd).expect("msg not sent");
-                    },
-                    None => self.is_id_invalid = true,
-                }
+                // match self.validate_parse_id(&self.id_input) {
+                //     Some(id) => {
+                //         self.is_id_invalid = false;
+                //         let cmd = WebClientCommand::AskListOfFiles(id);
+                //         self.command_ch.send(cmd).expect("msg not sent");
+                //     },
+                //     None => self.is_id_invalid = true,
+                // }
             }
 
             if self.is_id_invalid {
