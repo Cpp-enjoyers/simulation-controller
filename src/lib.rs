@@ -949,28 +949,27 @@ impl SimulationController {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut().clone();
+                // let mut node = self.graph.node(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => {
                         let drone_id = drone_widget.get_id();
                         ui.vertical(|ui| {
                             ui.add(drone_widget);
-                            ui.separator();
-                            ui.label("Crash the drone");
-                            let red_btn =
-                                ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
-                            if red_btn.clicked() {
-                                // check if the drone can crash
-                                match self.can_drone_crash(drone_id) {
-                                    Ok(_) => self.crash_drone(idx),
-                                    Err(error) => self.drone_crash_error = error,
-                                }
-                                // if so, send the crash command
-                                // and send a remove sender command to all its neighbors
-                            }
+                            // ui.separator();
+                            // ui.label("Crash the drone");
+                            // let red_btn =
+                            //     ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
+                            // if red_btn.clicked() {
+                            //     // check if the drone can crash
+                            //     match self.can_drone_crash(drone_id) {
+                            //         Ok(_) => self.crash_drone(idx),
+                            //         Err(error) => self.drone_crash_error = error,
+                            //     }
+                            // }
 
-                            if !self.drone_crash_error.is_empty() {
-                                ui.label(RichText::new(&self.drone_crash_error).color(egui::Color32::RED));
-                            }
+                            // if !self.drone_crash_error.is_empty() {
+                            //     ui.label(RichText::new(&self.drone_crash_error).color(egui::Color32::RED));
+                            // }
                         }).response
                     },
                     WidgetType::WebClient(web_client_widget) => ui.add(web_client_widget),
