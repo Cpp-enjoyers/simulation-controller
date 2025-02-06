@@ -793,8 +793,48 @@ impl SimulationController {
         }
     }
 
-    fn can_drone_crash(&self, drone_idx: NodeIndex) -> Result<(), String> {
-        // let drone_idx = self.get_node_idx(drone_id).unwrap();
+    fn can_drone_crash(&self, drone_id: NodeId) -> Result<(), String> {
+        let drone_idx = self.get_node_idx(drone_id).unwrap();
+
+        // Check if the neighbors of the drone can remove it
+        let neighbors = self.graph.g.neighbors(drone_idx).collect::<Vec<NodeIndex>>();
+        for neighbor in neighbors {
+            match self.graph.node(neighbor).unwrap().payload() {
+                WidgetType::Drone(drone_widget) => {
+                    let id = drone_widget.get_id();
+                    if let Some(pos) = self.drones.iter().position(|d| d.id == id) {
+                        if self.drones[pos].connected_node_ids.len() == 1 {
+                            return Err(format!("Drone {} must have at least 1 connection", id));
+                        }
+                    }
+                },
+                WidgetType::WebClient(web_client_widget) => {
+                    let id = web_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|wc| wc.id == id) {
+                        if self.clients[pos].connected_drone_ids.len() == 1 {
+                            return Err(format!("Client {} must have at least 1 connection", id));
+                        }
+                    }
+                },
+                WidgetType::ChatClient(chat_client_widget) => {
+                    let id = chat_client_widget.get_id();
+                    if let Some(pos) = self.clients.iter().position(|cc| cc.id == id) {
+                        if self.clients[pos].connected_drone_ids.len() == 1 {
+                            return Err(format!("Client {} must have at least 1 connection", id));
+                        }
+                    }
+                },
+                WidgetType::Server(server_widget) => {
+                    let id = server_widget.get_id();
+                    if let Some(pos) = self.servers.iter().position(|s| s.id == id) {
+                        if self.clients[pos].connected_drone_ids.len() == 2 {
+                            return Err(format!("Server {} must have at least 2 connections", id));
+                        }
+                    }
+                },
+            }
+        }
+
         let mut copy_graph = self.graph.clone();
         copy_graph.remove_node(drone_idx);
 
@@ -855,6 +895,7 @@ impl SimulationController {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut().clone();
                 match node {
                     WidgetType::Drone(drone_widget) => {
+                        let drone_id = drone_widget.get_id();
                         ui.vertical(|ui| {
                             ui.add(drone_widget);
                             ui.separator();
@@ -863,7 +904,7 @@ impl SimulationController {
                                 ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
                             if red_btn.clicked() {
                                 // check if the drone can crash
-                                match self.can_drone_crash(idx) {
+                                match self.can_drone_crash(drone_id) {
                                     Ok(_) => println!("Drone can crash"),
                                     Err(error) => println!("{}", error),
                                 }
