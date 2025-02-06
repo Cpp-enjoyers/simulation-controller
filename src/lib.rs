@@ -373,6 +373,7 @@ impl SimulationController {
         match event {
             WebClientEvent::PacketSent(packet) => {},
             WebClientEvent::Shortcut(packet) => {
+                println!("Received shortcut: {:?}", packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
                     Some(id) => self.handle_shortcut(id, packet),
