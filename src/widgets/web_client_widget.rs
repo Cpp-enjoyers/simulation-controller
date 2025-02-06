@@ -70,8 +70,8 @@ impl WebClientWidget {
 }
 
 
-impl Widget for &mut WebClientWidget {
-    fn ui(self, ui: &mut Ui) -> egui::Response {
+impl Widget for WebClientWidget {
+    fn ui(mut self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Web Client {}", self.id));
 

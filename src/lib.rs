@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, RichText, SidePanel, TopBottomPanel};
+use egui::{Button, CentralPanel, Color32, RichText, SidePanel, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
@@ -793,6 +793,49 @@ impl SimulationController {
         }
     }
 
+    fn can_drone_crash(&self, drone_idx: NodeIndex) -> Result<(), String> {
+        // let drone_idx = self.get_node_idx(drone_id).unwrap();
+        let mut copy_graph = self.graph.clone();
+        copy_graph.remove_node(drone_idx);
+
+        // check connectivity between clients and servers
+        for client in &self.clients {
+            let client_idx = self.get_node_idx(client.id).unwrap();
+            let mut visited: HashSet<NodeIndex> = HashSet::new();
+            let mut servers_visited: HashSet<NodeId> = HashSet::new();
+            let mut stack: VecDeque<NodeIndex> = VecDeque::new();
+            stack.push_back(client_idx);
+
+            while let Some(node) = stack.pop_front() {
+                if visited.insert(node) {
+                    let neighbors = copy_graph.g.neighbors(node).collect::<Vec<NodeIndex>>();
+                    for neighbor in neighbors {
+                        if let WidgetType::Server(server_widget) = copy_graph.node(neighbor).unwrap().payload() {
+                            servers_visited.insert(server_widget.get_id());
+                        } else if let WidgetType::ChatClient(_) | WidgetType::WebClient(_) = copy_graph.node(neighbor).unwrap().payload() {
+                            continue;
+                        } else {
+                            stack.push_front(neighbor);
+                        }
+                    }
+                }
+            }
+
+            // Check if the client can reach every server
+            if servers_visited.len() != self.servers.len() {
+                return Err(format!("By removing drone {}, client {} wouldn't reach every server", drone_idx.index(), client.id));
+            }
+        }
+
+        // check if graph is still connected
+        let cc = petgraph::algo::tarjan_scc(&copy_graph.g);
+        if cc.len() > 1 {
+            return Err(format!("By removing drone {}, the graph would become disconnected", drone_idx.index()));
+        }
+
+        Ok(())
+    }
+
     fn read_data(&mut self) {
         if !self.graph.selected_nodes().is_empty() {
             let idx = self.graph.selected_nodes().first().unwrap();
@@ -809,9 +852,26 @@ impl SimulationController {
         SidePanel::right("Panel").show(ctx, |ui| {
             ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
-                let node = self.graph.node_mut(idx).unwrap().payload_mut();
+                let node = self.graph.node_mut(idx).unwrap().payload_mut().clone();
                 match node {
-                    WidgetType::Drone(drone_widget) => ui.add(drone_widget),
+                    WidgetType::Drone(drone_widget) => {
+                        ui.vertical(|ui| {
+                            ui.add(drone_widget);
+                            ui.separator();
+                            ui.label("Crash the drone");
+                            let red_btn =
+                                ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
+                            if red_btn.clicked() {
+                                // check if the drone can crash
+                                match self.can_drone_crash(idx) {
+                                    Ok(_) => println!("Drone can crash"),
+                                    Err(error) => println!("{}", error),
+                                }
+                                // if so, send the crash command
+                                // and send a remove sender command to all its neighbors
+                            }
+                        }).response
+                    },
                     WidgetType::WebClient(web_client_widget) => ui.add(web_client_widget),
                     WidgetType::ChatClient(chat_client_widget) => ui.add(chat_client_widget),
                     WidgetType::Server(server_widget) => ui.add(server_widget),
@@ -925,9 +985,18 @@ impl SimulationController {
 }
 
 impl eframe::App for SimulationController {
+    /**
+     * TODOS:
+     * 1 Event logger
+     * 2 Chat client ui
+     * 3 Drone crash command handling
+     *  - Check if a drone can crash
+     * 4 Documentation
+     */
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_event();
         self.read_data();
         self.render(ctx);
     }
 }
+

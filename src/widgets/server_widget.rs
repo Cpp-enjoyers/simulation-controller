@@ -35,8 +35,8 @@ impl ServerWidget {
     }
 }
 
-impl Widget for &mut ServerWidget {
-    fn ui(self, ui: &mut Ui) -> egui::Response {
+impl Widget for ServerWidget {
+    fn ui(mut self, ui: &mut Ui) -> egui::Response {
         ui.vertical_centered(|ui| {
             ui.label(format!("Server {}", self.id));
             if ui.button("test").clicked() {

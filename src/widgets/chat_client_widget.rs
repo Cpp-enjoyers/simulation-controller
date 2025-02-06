@@ -48,8 +48,8 @@ impl ChatClientWidget {
     }
 }
 
-impl Widget for &mut ChatClientWidget {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+impl Widget for ChatClientWidget {
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Chat Client {}", self.id));
 

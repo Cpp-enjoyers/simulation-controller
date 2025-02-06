@@ -37,6 +37,11 @@ impl DroneWidget {
         self.id
     }
 
+    pub fn send_crash_command(&self) {
+        self.command_ch
+            .send(DroneCommand::Crash).expect("msg not sent");
+    }
+
     fn validate_parse_pdr(&self, input_pdr: &String) -> Option<f32> {
         if input_pdr.is_empty() {
             return None;
@@ -52,8 +57,8 @@ impl DroneWidget {
 }
 
 
-impl Widget for &mut DroneWidget {
-    fn ui(self, ui: &mut Ui) -> egui::Response {
+impl Widget for DroneWidget {
+    fn ui(mut self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Drone {}", self.id));
             ui.label("Change PDR");
@@ -72,14 +77,6 @@ impl Widget for &mut DroneWidget {
 
             if self.is_pdr_invalid {
                 ui.label(RichText::new("Invalid or empty PDR field!").color(Color32::RED));
-            }
-
-            ui.separator();
-            ui.label("Crash the drone");
-            let red_btn =
-                ui.add(Button::new(RichText::new("Crash").color(Color32::BLACK)).fill(Color32::RED));
-            if red_btn.clicked() {
-                self.command_ch.send(DroneCommand::Crash).expect("msg not sent");
             }
         }).response
     }
