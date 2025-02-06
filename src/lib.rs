@@ -339,6 +339,8 @@ impl SimulationController {
             }
         }
 
+        // Here I should add the chat clients events
+
         for (server_id, server_ch) in &self.servers_channels {
             if let Ok(event) = server_ch.1.try_recv() {
                 event_queue.push((*server_id, Events::ServerEvent(event)));
@@ -596,6 +598,8 @@ impl SimulationController {
                     for neighbor in neighbors {
                         if let WidgetType::Server(server_widget) = copy_graph.node(neighbor).unwrap().payload() {
                             servers_visited.insert(server_widget.get_id());
+                        } else if let WidgetType::ChatClient(_) | WidgetType::WebClient(_) = copy_graph.node(neighbor).unwrap().payload() {
+                            continue;
                         } else {
                             stack.push_front(neighbor);
                         }
