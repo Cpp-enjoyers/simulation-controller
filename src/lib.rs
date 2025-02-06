@@ -827,7 +827,7 @@ impl SimulationController {
                 WidgetType::Server(server_widget) => {
                     let id = server_widget.get_id();
                     if let Some(pos) = self.servers.iter().position(|s| s.id == id) {
-                        if self.clients[pos].connected_drone_ids.len() == 2 {
+                        if self.servers[pos].connected_drone_ids.len() == 2 {
                             return Err(format!("Server {} must have at least 2 connections", id));
                         }
                     }
