@@ -93,14 +93,14 @@ impl Widget for WebClientWidget {
             ui.label("Ask for Server files");
             ui.text_edit_singleline(&mut *self.id_input.borrow_mut());
             if ui.button("Send").clicked() {
-                // match self.validate_parse_id(&self.id_input) {
-                //     Some(id) => {
-                //         self.is_id_invalid = false;
-                //         let cmd = WebClientCommand::AskListOfFiles(id);
-                //         self.command_ch.send(cmd).expect("msg not sent");
-                //     },
-                //     None => self.is_id_invalid = true,
-                // }
+                match self.validate_parse_id(&self.id_input.borrow()) {
+                    Some(id) => {
+                        self.is_id_invalid = false;
+                        let cmd = WebClientCommand::AskListOfFiles(id);
+                        self.command_ch.send(cmd).expect("msg not sent");
+                    },
+                    None => self.is_id_invalid = true,
+                }
             }
 
             if self.is_id_invalid {
