@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, Color32, RichText, SidePanel, TopBottomPanel};
+use egui::{Button, CentralPanel, Color32, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
@@ -223,6 +223,7 @@ struct SimulationController {
     rm_neighbor_input: String,
     rm_neighbor_error: String,
     drone_crash_error: String,
+    events: Vec<String>
 }
 
 impl SimulationController {
@@ -269,6 +270,7 @@ impl SimulationController {
         servers: Vec<Server>,
     ) -> Self {
         let graph = generate_graph(&drones_channels, &web_clients_channels, &chat_clients_channels, &servers_channels, &drones, &clients, &servers);
+        let test_event = vec!["Event 1".to_string(), "Event 2".to_string(), "Event 3".to_string()];
         SimulationController {
             id,
             drones_channels,
@@ -285,7 +287,9 @@ impl SimulationController {
             add_neighbor_error: String::default(),
             rm_neighbor_input: String::default(),
             rm_neighbor_error: String::default(),
-            drone_crash_error: String::default()
+            drone_crash_error: String::default(),
+            // events: Vec::new(),
+            events: test_event,
         }
     }
 
@@ -1002,81 +1006,96 @@ impl SimulationController {
             ui.add(graph_widget);       
         });
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                // Add sender area
-                if let Some(idx) = self.selected_node {
-                    ui.vertical(|ui| {
-                        ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
-                        ui.set_max_width(71.0); // Width of the add button
-                        ui.text_edit_singleline(&mut self.add_neighbor_input);
-                        let add_btn = ui.add(Button::new("Add sender"));
-
-                        if add_btn.clicked() {
-                            match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-                                Ok(neighbor_idx) => {
-                                    let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
-                                    let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
-
-                                    let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
-                                    current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
-
-                                    let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-                                    neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
-
-                                    self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
-                                    self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
-                                    self.graph.add_edge(idx, neighbor_idx, ());
-                                },
-                                Err(error) => self.add_neighbor_error = error,
+            let text_style = TextStyle::Body;
+            let row_height = ui.text_style_height(&text_style);
+            ui.columns_const(|[left, right]| {
+                // Left column should containt the add sender and remove edge buttons
+                left.horizontal(|ui| {
+                    if let Some(idx) = self.selected_node {
+                        ui.vertical(|ui| {
+                            ui.label(format!("Selected node: {:?}", self.graph.node(idx).unwrap().payload().get_id_helper()));
+                            ui.set_max_width(71.0); // Width of the add button
+                            ui.text_edit_singleline(&mut self.add_neighbor_input);
+                            let add_btn = ui.add(Button::new("Add sender"));
+    
+                            if add_btn.clicked() {
+                                match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
+                                    Ok(neighbor_idx) => {
+                                        let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
+                                        let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
+    
+                                        let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
+                                        current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
+    
+                                        let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+                                        neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
+    
+                                        self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
+                                        self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+                                        self.graph.add_edge(idx, neighbor_idx, ());
+                                    },
+                                    Err(error) => self.add_neighbor_error = error,
+                                }
                             }
-                        }
-
-                        if !self.add_neighbor_error.is_empty() {
-                            ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
-                        }
-                    });
-                }
-
-                ui.add_space(15.0);
-
-                // Remove edge area
-                if let Some(edge_idx) = self.selected_edge {
-                    ui.vertical(|ui| {
-                        ui.label(format!("Selected edge: {:?}", edge_idx));
-                        let remove_btn = ui.add(Button::new("Remove edge"));
-        
-                        if remove_btn.clicked() {
-                            match self.validate_edge_removal(edge_idx) {
-                                Ok((node_1, node_2)) => {
-                                    self.rm_neighbor_error = String::new();
-        
-                                    let node_1_idx = self.get_node_idx(node_1).unwrap();
-                                    let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
-                                    // Send command to source to remove neighbor
-                                    node_1_widget.rm_neighbor_helper(node_2);
-        
-        
-                                    let node_2_idx = self.get_node_idx(node_2).unwrap();
-                                    let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();
-                                    // Send command to neighbor to remove source
-                                    node_2_widget.rm_neighbor_helper(node_1);
-                                    
-                                    // Update state of SCL
-                                    self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
-                                    self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
-                                    // Update graph visualization
-                                    self.graph.remove_edges_between(node_1_idx, node_2_idx);
-                                },
-                                Err(error) => self.rm_neighbor_error = error,
+    
+                            if !self.add_neighbor_error.is_empty() {
+                                ui.label(RichText::new(&self.add_neighbor_error).color(egui::Color32::RED));
                             }
+                        });
+                    }
+    
+                    ui.add_space(15.0);
+    
+                    // Remove edge area
+                    if let Some(edge_idx) = self.selected_edge {
+                        ui.vertical(|ui| {
+                            ui.label(format!("Selected edge: {:?}", edge_idx));
+                            let remove_btn = ui.add(Button::new("Remove edge"));
+            
+                            if remove_btn.clicked() {
+                                match self.validate_edge_removal(edge_idx) {
+                                    Ok((node_1, node_2)) => {
+                                        self.rm_neighbor_error = String::new();
+            
+                                        let node_1_idx = self.get_node_idx(node_1).unwrap();
+                                        let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
+                                        // Send command to source to remove neighbor
+                                        node_1_widget.rm_neighbor_helper(node_2);
+            
+            
+                                        let node_2_idx = self.get_node_idx(node_2).unwrap();
+                                        let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();
+                                        // Send command to neighbor to remove source
+                                        node_2_widget.rm_neighbor_helper(node_1);
+                                        
+                                        // Update state of SCL
+                                        self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
+                                        self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
+                                        // Update graph visualization
+                                        self.graph.remove_edges_between(node_1_idx, node_2_idx);
+                                    },
+                                    Err(error) => self.rm_neighbor_error = error,
+                                }
+                            }
+            
+                            // Display the error label
+                            if !self.rm_neighbor_error.is_empty() {
+                                ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
+                            }
+                        });
+                    }
+                }); // End of left column
+
+                // Right column should contain the event logger
+                ScrollArea::vertical().stick_to_bottom(true).show_rows(
+                    right, 
+                    row_height, 
+                    self.events.len(), 
+                    |ui, row_range| {
+                        for row in row_range {
+                            ui.label(self.events[row].to_string());
                         }
-        
-                        // Display the error label
-                        if !self.rm_neighbor_error.is_empty() {
-                            ui.label(RichText::new(&self.rm_neighbor_error).color(egui::Color32::RED));
-                        }
-                    });
-                }
+                });
             });
         });
     }
