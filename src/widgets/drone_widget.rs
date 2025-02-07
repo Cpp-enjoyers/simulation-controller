@@ -19,7 +19,7 @@ pub struct DroneWidget {
     /// The input field for the packet drop rate (PDR)
     pdr_input: Rc<RefCell<String>>,
     /// Flag to indicate if the input for the PDR is invalid
-    is_pdr_invalid: bool,
+    pdr_invalid: Rc<RefCell<String>>,
 }
 
 impl DroneWidget {
@@ -32,7 +32,7 @@ impl DroneWidget {
             id,
             command_ch,
             pdr_input: Rc::new(RefCell::new(String::default())),
-            is_pdr_invalid: false,
+            pdr_invalid: Rc::new(RefCell::new(String::default())),
         }
     }
 
@@ -84,18 +84,18 @@ impl DroneWidget {
     /// let pdr = "1.5".to_string();
     /// assert_eq!(validate_parse_pdr(&pdr), None);
     /// ```
-    fn validate_parse_pdr(input_pdr: &str) -> Option<f32> {
+    fn validate_parse_pdr(input_pdr: &str) -> Result<f32, String> {
         if input_pdr.is_empty() {
-            return None;
+            return Err("Empty ID field".to_string());
         }
 
         let pdr = input_pdr.parse::<f32>().unwrap();
         // Bro....this is crazy
         if !(0.0..=1.0).contains(&pdr) {
-            return None;
+            return Err("PDR must be between 0.0 and 1.0".to_string());
         }
 
-        Some(pdr)
+        Ok(pdr)
     }
 }
 
@@ -109,25 +109,25 @@ impl DroneWidget {
 /// ui.add(DroneWidget::new(1, command_ch));
 /// ```
 impl Widget for DroneWidget {
-    fn ui(mut self, ui: &mut Ui) -> egui::Response {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Drone {}", self.id));
             ui.label("Change PDR");
             ui.text_edit_singleline(&mut *self.pdr_input.borrow_mut());
             if ui.button("Send").clicked() {
                 match DroneWidget::validate_parse_pdr(&self.pdr_input.borrow()) {
-                    Some(pdr) => {
-                        self.is_pdr_invalid = false;
+                    Ok(pdr) => {
+                        self.pdr_invalid.borrow_mut().clear();
                         let cmd = DroneCommand::SetPacketDropRate(pdr);
                         self.command_ch.send(cmd).expect("msg not sent");
                     }
-                    None => self.is_pdr_invalid = true,
+                    Err(error) => *self.pdr_invalid.borrow_mut() = error,
 
                 }
             }
 
-            if self.is_pdr_invalid {
-                ui.label(RichText::new("Invalid or empty PDR field!").color(Color32::RED));
+            if self.pdr_invalid.borrow().is_empty() {
+                ui.label(RichText::new(&*self.pdr_invalid.borrow()).color(Color32::RED));
             }
         }).response
     }
