@@ -81,11 +81,24 @@ impl WebClientWidget {
         self.id
     }
 
+    /// Function that validates the input for the server id
+    /// 
+    /// The function checks if the input is empty, if the input can be parsed to a `NodeId`
+    /// and if the parsed `NodeId` is a valid server id.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// let input_id = "1".to_string();
+    /// assert_eq!(validate_parse_id(&input_id), Ok(1));
+    /// 
+    /// let input_id = "a".to_string();
+    /// assert_eq!(validate_parse_id(&input_id), Err("Wrong ID format".to_string()));
+    /// ```
     fn validate_parse_id(&self, input_id: &String) -> Result<NodeId, String> {
         if input_id.is_empty() {
             return Err("Empty ID field".to_string());
         }
-        // this can explode
+
         let id = input_id.parse::<NodeId>();
 
         if id.is_err() {
@@ -101,7 +114,15 @@ impl WebClientWidget {
     }
 }
 
-
+/// Implementation of the `egui::Widget` trait for the `WebClientWidget`
+/// 
+/// This allows the `WebClientWidget` to be rendered as an egui widget
+/// 
+/// # Example
+/// ```no_run
+/// use egui::Ui;
+/// ui.add(WebClientWidget::new(1, command_ch));
+/// ```
 impl Widget for WebClientWidget {
     fn ui(mut self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
@@ -132,18 +153,9 @@ impl Widget for WebClientWidget {
                         self.command_ch.send(cmd).expect("msg not sent");
                     },
                     Err(error) => *self.id_input_error.borrow_mut() = error,
-                    // Some(id) => {
-                    //     self.is_id_invalid = false;
-                    //     let cmd = WebClientCommand::AskListOfFiles(id);
-                    //     self.command_ch.send(cmd).expect("msg not sent");
-                    // },
-                    // None => self.is_id_invalid = true,
                 }
             }
 
-            // if self.is_id_invalid {
-            //     ui.label(RichText::new("Invalid or empty id field!").color(egui::Color32::RED));
-            // }
             if !self.id_input_error.borrow().is_empty() {
                 ui.label(RichText::new(&*self.id_input_error.borrow()).color(egui::Color32::RED));
             }
