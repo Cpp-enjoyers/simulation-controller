@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f32::consts::E, rc::Rc};
 
 use common::slc_commands::{ServerType, WebClientCommand};
 use crossbeam_channel::Sender;
@@ -6,16 +6,32 @@ use egui::{Label, RichText, Sense, Ui, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
 #[derive(Clone, Debug)]
+/// Represents a web client widget
+/// 
+/// This struct stores the NodeId and the `Sender<WebClientCommand>` of the
+/// represented web client.
+/// Furthermore, it stores the input for the server id and a flag to indicate if
+/// the input is invalid.
+/// It also stores the discovered servers with their types and the list of files
+/// they have.
 pub struct WebClientWidget {
+    /// The NodeId of the web client
     id: NodeId,
+    /// The `Sender<WebClientCommand>` channel to send commands to the web client
     command_ch: Sender<WebClientCommand>,
+    /// The discovered servers with their types
     servers_types: HashMap<NodeId, ServerType>,
+    /// The input field for the server id
     id_input: Rc<RefCell<String>>,
+    /// Flag to indicate if the input for the server id is invalid
     is_id_invalid: bool,
+    id_input_error: String,
+    /// The list of files contained on the servers
     list_of_files: HashMap<NodeId, Vec<String>>,
 }
 
 impl WebClientWidget {
+    /// Creates a new `WebClientWidget` with the given `id` and `command_ch`
     pub fn new(
         id: NodeId,
         command_ch: Sender<WebClientCommand>,
@@ -26,46 +42,62 @@ impl WebClientWidget {
             servers_types: HashMap::default(),
             id_input: Rc::new(RefCell::new(String::default())),
             is_id_invalid: false,
+            id_input_error: String::default(),
             list_of_files: HashMap::default(),
         }
     }
 
+    /// Utility function to send a `WebClientCommand::AddSender` command to the web client
+    /// Adds a new neighbor with `neighbor_id` to the web client's neighbor list
+    /// Furthermore, a clone of the `Sender<Packet>` channel is stored in the web client
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch
             .send(WebClientCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
     }
 
+    /// Utility function to send a `WebClientCommand::RemoveSender` command to the web client
+    /// Removes a the neighbor with `neighbor_id` from the web client's neighbor list
     pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
             .send(WebClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
     }
 
+    /// Function to add a list of files to the web client
+    /// The list of files is associated with the server with the given `server_id`
+    /// The response is received from the mimicked client through the `WebClientEvent::ListOfFiles` event
     pub fn add_list_of_files(&mut self, server_id: NodeId, files: Vec<String>) {
         self.list_of_files.insert(server_id, files);
     }
 
+    /// Function to add a servers type to the web client
+    /// The server type is associated with the server with the given `server_id`
+    /// The response is received from the mimicked client through the `WebClientEvent::ServersTypes` event
     pub fn add_server_type(&mut self, server_types: HashMap<NodeId, ServerType>) {
         self.servers_types = server_types;
     }
 
+    /// Utility function to get the NodeId of the web client
     pub fn get_id(&self) -> NodeId {
         self.id
     }
 
-    fn validate_parse_id(&self, input_id: &String) -> Option<NodeId> {
+    fn validate_parse_id(&self, input_id: &String) -> Result<NodeId, String> {
         if input_id.is_empty() {
-            return None;
+            return Err("Empty ID field".to_string());
         }
         // this can explode
-        let id = input_id.parse::<NodeId>().unwrap();
+        let id = input_id.parse::<NodeId>();
 
-        if self.servers_types.contains_key(&id) {
-            Some(id)
-        } else {
-            None
+        if id.is_err() {
+            return Err("Wrong ID format".to_string());
         }
 
-
+        let id = id.unwrap();
+        if self.servers_types.contains_key(&id) {
+            Ok(id)
+        } else {
+            Err("Server ID not found".to_string())
+        }
     }
 }
 
@@ -94,17 +126,26 @@ impl Widget for WebClientWidget {
             ui.text_edit_singleline(&mut *self.id_input.borrow_mut());
             if ui.button("Send").clicked() {
                 match self.validate_parse_id(&self.id_input.borrow()) {
-                    Some(id) => {
-                        self.is_id_invalid = false;
+                    Ok(id) => {
+                        self.id_input_error = String::default();
                         let cmd = WebClientCommand::AskListOfFiles(id);
                         self.command_ch.send(cmd).expect("msg not sent");
                     },
-                    None => self.is_id_invalid = true,
+                    Err(error) => self.id_input_error = error,
+                    // Some(id) => {
+                    //     self.is_id_invalid = false;
+                    //     let cmd = WebClientCommand::AskListOfFiles(id);
+                    //     self.command_ch.send(cmd).expect("msg not sent");
+                    // },
+                    // None => self.is_id_invalid = true,
                 }
             }
 
-            if self.is_id_invalid {
-                ui.label(RichText::new("Invalid or empty id field!").color(egui::Color32::RED));
+            // if self.is_id_invalid {
+            //     ui.label(RichText::new("Invalid or empty id field!").color(egui::Color32::RED));
+            // }
+            if !self.id_input_error.is_empty() {
+                ui.label(RichText::new(&self.id_input_error).color(egui::Color32::RED));
             }
 
             ui.separator();
