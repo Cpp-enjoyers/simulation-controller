@@ -891,9 +891,15 @@ impl SimulationController {
                     WidgetType::WebClient(web_client_widget) => ui.add(web_client_widget),
                     WidgetType::ChatClient(chat_client_widget) => ui.add(chat_client_widget),
                     WidgetType::Server(server_widget) => ui.add(server_widget),
-                }
+                };
             } else {
-                ui.label("No node selected")
+                ui.label("No node selected");
+            }
+
+            ui.add_space(ui.available_height() - ui.spacing().item_spacing.y);
+
+            if ui.button("Add Drone").clicked() {
+                println!("Add Drone button clicked");
             }
         });
         TopBottomPanel::bottom("Bottom_panel").resizable(true).show(ctx, |ui| {
@@ -1019,8 +1025,8 @@ impl SimulationController {
 impl eframe::App for SimulationController {
     /**
      * TODOS:
-     * 1 Event logger
-     * 2 Chat client ui
+     * 1 Event logger (in progress)
+     * 2 Chat client ui (in progress)
      * 4 Documentation (partially done)
      * 
      * DONE (hopefully)
