@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crossbeam_channel::Sender;
 use egui::{Color32, RichText, Ui, Widget};
 use wg_2024::{controller::DroneCommand, network::NodeId, packet::Packet};
@@ -15,7 +17,7 @@ pub struct DroneWidget {
     /// The `Sender<DroneCommand>` channel to send commands to the drone
     command_ch: Sender<DroneCommand>,
     /// The input field for the packet drop rate (PDR)
-    pdr_input: String,
+    pdr_input: Rc<RefCell<String>>,
     /// Flag to indicate if the input for the PDR is invalid
     is_pdr_invalid: bool,
 }
@@ -29,7 +31,7 @@ impl DroneWidget {
         Self {
             id,
             command_ch,
-            pdr_input: String::default(),
+            pdr_input: Rc::new(RefCell::new(String::default())),
             is_pdr_invalid: false,
         }
     }
@@ -111,9 +113,9 @@ impl Widget for DroneWidget {
         ui.vertical(|ui| {
             ui.label(format!("Drone {}", self.id));
             ui.label("Change PDR");
-            ui.text_edit_singleline(&mut self.pdr_input);
+            ui.text_edit_singleline(&mut *self.pdr_input.borrow_mut());
             if ui.button("Send").clicked() {
-                match DroneWidget::validate_parse_pdr(&self.pdr_input) {
+                match DroneWidget::validate_parse_pdr(&self.pdr_input.borrow()) {
                     Some(pdr) => {
                         self.is_pdr_invalid = false;
                         let cmd = DroneCommand::SetPacketDropRate(pdr);
