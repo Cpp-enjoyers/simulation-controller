@@ -903,6 +903,7 @@ impl SimulationController {
             // }
 
             ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                ui.add_space(10.0);
                 if ui.button("Add Drone").clicked() {
                     println!("Add Drone button clicked");
                 }
