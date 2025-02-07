@@ -220,7 +220,6 @@ struct SimulationController {
     selected_edge: Option<EdgeIndex>,
     add_neighbor_input: String,
     add_neighbor_error: String,
-    rm_neighbor_input: String,
     rm_neighbor_error: String,
     drone_crash_error: String,
     events: Vec<RichText>,
@@ -284,7 +283,6 @@ impl SimulationController {
             selected_edge: Option::default(),
             add_neighbor_input: String::default(),
             add_neighbor_error: String::default(),
-            rm_neighbor_input: String::default(),
             rm_neighbor_error: String::default(),
             drone_crash_error: String::default(),
             events: Vec::new(),
@@ -627,9 +625,8 @@ impl SimulationController {
         }
     }
 
-    /**
-     * Before removing an edge, I should check that without it, every client can still reach every server.
-     */
+    /// Function that checks if the removal of the edge would make some servers/clients unreachable
+    /// Furthermore, it that checks if the graph would become disconnected if the edge is removed.
     fn check_connectivity(&self, edge_to_remove: EdgeIndex) -> Result<(), String> {
         let mut copy_graph = self.graph.clone();
         copy_graph.remove_edge(edge_to_remove).unwrap();
@@ -672,16 +669,6 @@ impl SimulationController {
         Ok(())
     }
 
-    /**
-     * This function checks whether the graph would become disconnected
-     * by removing the edge between source_idx and neighbor_idx
-     */
-    fn is_graph_disconnected(&self, source_idx: NodeIndex, neighbor_idx: NodeIndex) -> bool {
-        let mut copy_graph = self.graph.clone();
-        copy_graph.remove_edges_between(source_idx, neighbor_idx);
-        let cc = petgraph::algo::tarjan_scc(&copy_graph.g);
-        cc.len() > 1 // Means that there are more than 1 CC, so the graph is disconnected
-    }
 
     fn can_remove_sender(&self, node_idx: NodeIndex) -> Result<u8, String> {
         match self.graph.node(node_idx).unwrap().payload() {
@@ -754,100 +741,12 @@ impl SimulationController {
 
         // Take the 2 endpoints of the edge to be removed
         let (node_1, node_2) = self.graph.edge_endpoints(edge).unwrap();
-        // if self.is_graph_disconnected(node_1, node_2) {
-        //     return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
-        // }
 
         match (self.can_remove_sender(node_1), self.can_remove_sender(node_2)) {
             (Ok(id_1), Ok(id_2)) => Ok((id_1, id_2)),
             (Ok(_), Err(e)) => Err(e),
             (Err(e), Ok(_)) => Err(e),
             (Err(_), Err(_)) => Err("Either nodes can't remove each other".to_string()),
-        }
-    }
-    /**
-     * Method to check whether a node can remove a sender or not
-     * Base checks that should be verified before removing, for each type of widget:
-     * - Client -> must remain connected to at least 1 drone
-     * - Server -> must remain connected to at least 2 drones
-     * However these checks does not take into account the possibility to leave the graph disconnected.
-     * So a check to see if the removal of an edge would make the graph disconnected, should be introduced.
-     */
-    fn validate_parse_remove_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<(u8, NodeIndex), String> {
-        if input_neighbor_id.is_empty() {
-            return Err("The input field cannot be empty".to_string());
-        }
-
-        // Parse the input to u8, return error if parsing goes wrong
-        let neighbor_id = match input_neighbor_id.parse::<u8>(){
-            Ok(id) => id,
-            Err(_) => return Err("Wrong ID format".to_string()),
-        };
-        // From the u8 id, retrieve the corresponding NodeIndex in the graph
-        let neighbor_idx = match self.get_node_idx(neighbor_id) {
-            Some(id) => id,
-            None => return Err("ID not found in the graph".to_string()),
-        };
-
-        if let Some(current_selected_node) = self.selected_node {
-            // Here we check if the graph would become disconnected
-            if self.is_graph_disconnected(current_selected_node, neighbor_idx) {
-                return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
-            }
-            match self.graph.node(current_selected_node).unwrap().payload() {
-                // For drones I should check if they have at least 1 connection, otherwise the graph becomes disconnected
-                WidgetType::Drone(drone_widget) => {
-                    let drone_id = drone_widget.get_id();
-                    if let Some(pos) = self.drones.iter().position(|d| d.id == drone_id) {
-                        if self.drones.get(pos).unwrap().connected_node_ids.len() == 1 {
-                            return Err(format!("Cant remove last connection of drone {}!!!", drone_id));
-                        } else {
-                            return Ok((neighbor_id, neighbor_idx));
-                        }
-                    } else {
-                        return Err("Drone not found".to_string());
-                    }
-                },
-                // For clients I should check that they are connected to at least 1 drone
-                WidgetType::WebClient(web_client_widget) => {
-                    let client_id = web_client_widget.get_id();
-                    if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
-                        if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                            return Err(format!("Client {} must have at least 1 connection!", client_id));
-                        } else {
-                            return Ok((neighbor_id, neighbor_idx));
-                        }
-                    } else {
-                        return Err("Client not found".to_string());
-                    }
-                },
-                WidgetType::ChatClient(chat_client_widget) => {
-                    let client_id = chat_client_widget.get_id();
-                    if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
-                        if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                            return Err(format!("Client {} must have at least 1 connection!", client_id));
-                        } else {
-                            return Ok((neighbor_id, neighbor_idx));
-                        }
-                    } else {
-                        return Err("Client not found".to_string());
-                    }
-                },
-                WidgetType::Server(server_widget) => {
-                    let server_id = server_widget.get_id();
-                    if let Some(pos) = self.servers.iter().position(|s| s.id == server_id) {
-                        if self.servers.get(pos).unwrap().connected_drone_ids.len() == 2 {
-                            return Err(format!("Server {} must have at least 2 connections", server_id));
-                        } else {
-                            return Ok((neighbor_id, neighbor_idx));
-                        }
-                    } else {
-                        return Err("Server not found".to_string());
-                    }
-                },
-            }
-        } else {
-            return Err("No selected node".to_string());
         }
     }
 
