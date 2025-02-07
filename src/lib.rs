@@ -34,43 +34,21 @@ enum UpdateType {
     Remove
 }
 
-pub fn run(id: NodeId,
-    drones_channels: HashMap<
-        NodeId,
-        (
-            Sender<DroneCommand>,
-            Receiver<DroneEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    web_clients_channels: HashMap<
-        NodeId,
-        (
-            Sender<WebClientCommand>,
-            Receiver<WebClientEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    chat_clients_channels: HashMap<
-        NodeId,
-        (
-            Sender<ChatClientCommand>,
-            Receiver<ChatClientEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    servers_channels: HashMap<
-        NodeId,
-        (
-            Sender<ServerCommand>,
-            Receiver<ServerEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
+// Type aliases for the channels
+type DChannels = HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
+type WCChannels = HashMap<NodeId, (Sender<WebClientCommand>, Receiver<WebClientEvent>, Sender<Packet>, Receiver<Packet>)>;
+type CCChannels = HashMap<NodeId, (Sender<ChatClientCommand>, Receiver<ChatClientEvent>, Sender<Packet>, Receiver<Packet>)>;
+type SChannels = HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>;
+
+/// Function to run the simulation controller
+/// 
+/// # Panics
+/// The function panics if the GUI fails to run
+pub fn run(
+    drones_channels: DChannels,
+    web_clients_channels: WCChannels,
+    chat_clients_channels: CCChannels,
+    servers_channels: SChannels,
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,) {
@@ -79,7 +57,6 @@ pub fn run(id: NodeId,
             "Simulation Controller",
             options,
             Box::new(|_cc| Ok(Box::new(SimulationController::new(
-                id,
                 drones_channels,
                 web_clients_channels,
                 chat_clients_channels,
@@ -91,12 +68,7 @@ pub fn run(id: NodeId,
         ).expect("Failed to run simulation controller");
 }
 
-
-type DChannels<'a> = &'a HashMap<NodeId, (Sender<DroneCommand>, Receiver<DroneEvent>, Sender<Packet>, Receiver<Packet>)>;
-type WCChannels<'a> = &'a HashMap<NodeId, (Sender<WebClientCommand>, Receiver<WebClientEvent>, Sender<Packet>, Receiver<Packet>)>;
-type CCChannels<'a> = &'a HashMap<NodeId, (Sender<ChatClientCommand>, Receiver<ChatClientEvent>, Sender<Packet>, Receiver<Packet>)>;
-type SChannels<'a> = &'a HashMap<NodeId, (Sender<ServerCommand>, Receiver<ServerEvent>, Sender<Packet>, Receiver<Packet>)>;
-fn generate_graph(dh: DChannels, wch: WCChannels, cch: CCChannels, sh: SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
+fn generate_graph(dh: &DChannels, wch: &WCChannels, cch: &CCChannels, sh: &SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
@@ -176,43 +148,10 @@ fn generate_graph(dh: DChannels, wch: WCChannels, cch: CCChannels, sh: SChannels
 
 // #[derive(Debug)]
 struct SimulationController {
-    id: NodeId,
-    drones_channels: HashMap<
-        NodeId,
-        (
-            Sender<DroneCommand>,
-            Receiver<DroneEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    web_clients_channels: HashMap<
-        NodeId,
-        (
-            Sender<WebClientCommand>,
-            Receiver<WebClientEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    chat_clients_channels: HashMap<
-        NodeId,
-        (
-            Sender<ChatClientCommand>,
-            Receiver<ChatClientEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
-    servers_channels: HashMap<
-        NodeId,
-        (
-            Sender<ServerCommand>,
-            Receiver<ServerEvent>,
-            Sender<Packet>,
-            Receiver<Packet>,
-        ),
-    >,
+    drones_channels: DChannels,
+    web_clients_channels: WCChannels,
+    chat_clients_channels: CCChannels,
+    servers_channels: SChannels,
     drones: Vec<Drone>,
     clients: Vec<Client>,
     servers: Vec<Server>,
@@ -228,50 +167,16 @@ struct SimulationController {
 
 impl SimulationController {
     pub fn new(
-        id: NodeId,
-        drones_channels: HashMap<
-            NodeId,
-            (
-                Sender<DroneCommand>,
-                Receiver<DroneEvent>,
-                Sender<Packet>,
-                Receiver<Packet>,
-            ),
-        >,
-        web_clients_channels: HashMap<
-            NodeId,
-            (
-                Sender<WebClientCommand>,
-                Receiver<WebClientEvent>,
-                Sender<Packet>,
-                Receiver<Packet>,
-            ),
-        >,
-        chat_clients_channels: HashMap<
-            NodeId,
-            (
-                Sender<ChatClientCommand>,
-                Receiver<ChatClientEvent>,
-                Sender<Packet>,
-                Receiver<Packet>,
-            ),
-        >,
-        servers_channels: HashMap<
-            NodeId,
-            (
-                Sender<ServerCommand>,
-                Receiver<ServerEvent>,
-                Sender<Packet>,
-                Receiver<Packet>,
-            ),
-        >,
+        drones_channels: DChannels,
+        web_clients_channels: WCChannels,
+        chat_clients_channels: CCChannels,
+        servers_channels: SChannels,
         drones: Vec<Drone>,
         clients: Vec<Client>,
         servers: Vec<Server>,
     ) -> Self {
         let graph = generate_graph(&drones_channels, &web_clients_channels, &chat_clients_channels, &servers_channels, &drones, &clients, &servers);
         SimulationController {
-            id,
             drones_channels,
             web_clients_channels,
             chat_clients_channels,
@@ -639,7 +544,7 @@ impl SimulationController {
                 
                 // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
                 // and all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
-                (WidgetType::ChatClient(_), _) | (WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
+                (WidgetType::ChatClient(_) | WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
                 
                 // Servers - can be connected to any number of drones (but min. 2)
                 (WidgetType::Server(_), WidgetType::Drone(_)) => Ok(neighbor_idx),
@@ -976,7 +881,6 @@ impl SimulationController {
                             ui.set_max_width(71.0); // Width of the add button
                             ui.text_edit_singleline(&mut self.add_neighbor_input);
                             let add_btn = ui.add(Button::new("Add sender"));
-    
                             if add_btn.clicked() {
                                 match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
                                     Ok(neighbor_idx) => {
@@ -1010,7 +914,6 @@ impl SimulationController {
                         ui.vertical(|ui| {
                             ui.label(format!("Selected edge: {edge_idx:?}"));
                             let remove_btn = ui.add(Button::new("Remove edge"));
-            
                             if remove_btn.clicked() {
                                 match self.validate_edge_removal(edge_idx) {
                                     Ok((node_1, node_2)) => {
@@ -1020,7 +923,6 @@ impl SimulationController {
                                         let node_1_widget = self.graph.node_mut(node_1_idx).unwrap().payload_mut();
                                         // Send command to source to remove neighbor
                                         node_1_widget.rm_neighbor_helper(node_2);
-            
             
                                         let node_2_idx = self.get_node_idx(node_2).unwrap();
                                         let node_2_widget = self.graph.node_mut(node_2_idx).unwrap().payload_mut();

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, f32::consts::E, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use common::slc_commands::{ServerType, WebClientCommand};
 use crossbeam_channel::Sender;
@@ -8,14 +8,14 @@ use wg_2024::{network::NodeId, packet::Packet};
 #[derive(Clone, Debug)]
 /// Represents a web client widget
 /// 
-/// This struct stores the NodeId and the `Sender<WebClientCommand>` of the
+/// This struct stores the `NodeId` and the `Sender<WebClientCommand>` of the
 /// represented web client.
 /// Furthermore, it stores the input for the server id and a flag to indicate if
 /// the input is invalid.
 /// It also stores the discovered servers with their types and the list of files
 /// they have.
 pub struct WebClientWidget {
-    /// The NodeId of the web client
+    /// The `NodeId` of the web client
     id: NodeId,
     /// The `Sender<WebClientCommand>` channel to send commands to the web client
     command_ch: Sender<WebClientCommand>,
@@ -24,7 +24,6 @@ pub struct WebClientWidget {
     /// The input field for the server id
     id_input: Rc<RefCell<String>>,
     /// Flag to indicate if the input for the server id is invalid
-    is_id_invalid: bool,
     id_input_error: Rc<RefCell<String>>,
     /// The list of files contained on the servers
     list_of_files: HashMap<NodeId, Vec<String>>,
@@ -32,7 +31,7 @@ pub struct WebClientWidget {
 
 impl WebClientWidget {
     /// Creates a new `WebClientWidget` with the given `id` and `command_ch`
-    pub fn new(
+    #[must_use] pub fn new(
         id: NodeId,
         command_ch: Sender<WebClientCommand>,
     ) -> Self {
@@ -41,7 +40,6 @@ impl WebClientWidget {
             command_ch,
             servers_types: HashMap::default(),
             id_input: Rc::new(RefCell::new(String::default())),
-            is_id_invalid: false,
             id_input_error: Rc::new(RefCell::new(String::default())),
             list_of_files: HashMap::default(),
         }
@@ -50,6 +48,9 @@ impl WebClientWidget {
     /// Utility function to send a `WebClientCommand::AddSender` command to the web client
     /// Adds a new neighbor with `neighbor_id` to the web client's neighbor list
     /// Furthermore, a clone of the `Sender<Packet>` channel is stored in the web client
+    /// 
+    /// # Panics
+    /// The function panics if the message is not sent
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch
             .send(WebClientCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
@@ -57,6 +58,9 @@ impl WebClientWidget {
 
     /// Utility function to send a `WebClientCommand::RemoveSender` command to the web client
     /// Removes a the neighbor with `neighbor_id` from the web client's neighbor list
+    /// 
+    /// # Panics
+    /// The function panics if the message is not sent
     pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
             .send(WebClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
@@ -76,8 +80,8 @@ impl WebClientWidget {
         self.servers_types = server_types;
     }
 
-    /// Utility function to get the NodeId of the web client
-    pub fn get_id(&self) -> NodeId {
+    /// Utility function to get the `NodeId` of the web client
+    #[must_use] pub fn get_id(&self) -> NodeId {
         self.id
     }
 
@@ -94,7 +98,7 @@ impl WebClientWidget {
     /// let input_id = "a".to_string();
     /// assert_eq!(validate_parse_id(&input_id), Err("Wrong ID format".to_string()));
     /// ```
-    fn validate_parse_id(&self, input_id: &String) -> Result<NodeId, String> {
+    fn validate_parse_id(&self, input_id: &str) -> Result<NodeId, String> {
         if input_id.is_empty() {
             return Err("Empty ID field".to_string());
         }
@@ -124,7 +128,7 @@ impl WebClientWidget {
 /// ui.add(WebClientWidget::new(1, command_ch));
 /// ```
 impl Widget for WebClientWidget {
-    fn ui(mut self, ui: &mut Ui) -> egui::Response {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Web Client {}", self.id));
 
@@ -137,7 +141,7 @@ impl Widget for WebClientWidget {
 
             ui.label("Servers types:");
             for (id, srv_type) in &self.servers_types {
-                ui.label(format!("Server {}: {:?}", id, srv_type));
+                ui.label(format!("Server {id}: {srv_type:?}"));
             }
 
             ui.separator();
@@ -163,9 +167,9 @@ impl Widget for WebClientWidget {
             ui.separator();
             ui.label("Received files:");
             for (server_id, server_files) in &self.list_of_files {
-                ui.label(format!("Server {}: ", server_id));
+                ui.label(format!("Server {server_id}: "));
                 for file in server_files {
-                    let file_name = file.split("/").last().unwrap().to_string();
+                    let file_name = file.split('/').last().unwrap().to_string();
                     if ui.add(Label::new(file_name).sense(Sense::click())).clicked() {
                         let cmd = WebClientCommand::RequestFile(file.to_string(), *server_id);
                         self.command_ch.send(cmd).expect("msg not sent");

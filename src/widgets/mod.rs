@@ -19,7 +19,7 @@ pub enum WidgetType {
 }
 
 impl WidgetType {
-    pub fn get_id_helper(&self) -> NodeId {
+    #[must_use] pub fn get_id_helper(&self) -> NodeId {
         match self {
             WidgetType::Drone(drone_widget) => drone_widget.get_id(),
             WidgetType::WebClient(web_client_widget) => web_client_widget.get_id(),
