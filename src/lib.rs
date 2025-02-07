@@ -319,6 +319,16 @@ impl SimulationController {
         None
     }
 
+    fn get_pack_type(&self, packet: &Packet) -> String {
+        match &packet.pack_type {
+            wg_2024::packet::PacketType::MsgFragment(_) => String::from("MsgFragment"),
+            wg_2024::packet::PacketType::Ack(_) => String::from("Ack"),
+            wg_2024::packet::PacketType::Nack(_) => String::from("Nack"),
+            wg_2024::packet::PacketType::FloodRequest(_) => String::from("FloodRequest"),
+            wg_2024::packet::PacketType::FloodResponse(_) => String::from("FloodResponse"),
+        }
+    }
+
     fn handle_shortcut(&self, id: NodeId, packet: Packet) {
         if let Some(ch) = self.drones_channels.get(&id) {
             ch.2.send(packet).unwrap();
@@ -364,19 +374,27 @@ impl SimulationController {
     fn handle_drone_event(&mut self, drone_id: &NodeId, event: DroneEvent) {
         match event {
             DroneEvent::PacketSent(packet) => {
-                let event_string = format!("[DRONE: {}] Sent packet", drone_id);
+                let packet_type = self.get_pack_type(&packet);
+                let event_string = format!("[DRONE: {}] Sent {} packet", drone_id, packet_type);
                 let event_label = RichText::new(event_string);
                 self.events.push(event_label);
             },
             DroneEvent::PacketDropped(packet) => {
-                let event_string = format!("[DRONE: {}] Dropped packet", drone_id);
+                let packet_type = self.get_pack_type(&packet);
+                let event_string = format!("[DRONE: {}] Dropped {} packet", drone_id, packet_type);
                 let event_label = RichText::new(event_string).color(Color32::RED);
                 self.events.push(event_label);
             },
             DroneEvent::ControllerShortcut(packet) => {
+                let packet_type = self.get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
-                    Some(id) => self.handle_shortcut(id, packet),
+                    Some(id) => {
+                        let event_string = format!("[DRONE: {}] Requested shortcut for packet {} to {}", drone_id, packet_type, id);
+                        let event_label = RichText::new(event_string).color(Color32::ORANGE);
+                        self.events.push(event_label);
+                        self.handle_shortcut(id, packet)
+                    },
                     None => unreachable!("Is it possible????"),
                 }
             },
@@ -385,12 +403,22 @@ impl SimulationController {
 
     fn handle_client_event(&mut self, client_id: &NodeId, event: WebClientEvent) {
         match event {
-            WebClientEvent::PacketSent(packet) => {},
+            WebClientEvent::PacketSent(packet) => {
+                let packet_type = self.get_pack_type(&packet);
+                let event_string = format!("[WEB CLIENT: {}] Sent {} packet", client_id, packet_type);
+                let event_label = RichText::new(event_string);
+                self.events.push(event_label);
+            },
             WebClientEvent::Shortcut(packet) => {
-                println!("Received shortcut: {:?}", packet);
+                let packet_type = self.get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
-                    Some(id) => self.handle_shortcut(id, packet),
+                    Some(id) => {
+                        let event_string = format!("[WEB CLIENT: {}] Requested shortcut for packet {} to {}", client_id, packet_type, id);
+                        let event_label = RichText::new(event_string).color(Color32::ORANGE);
+                        self.events.push(event_label);
+                        self.handle_shortcut(id, packet)
+                    },
                     None => unreachable!("Is it possible????"),
                 }
             },
@@ -445,13 +473,24 @@ impl SimulationController {
             WebClientEvent::UnsupportedRequest => {},
         }
     }
-    fn handle_server_event(&self, server_id: &NodeId, event: ServerEvent) {
+    fn handle_server_event(&mut self, server_id: &NodeId, event: ServerEvent) {
         match event {
-            ServerEvent::PacketSent(packet) => {},
+            ServerEvent::PacketSent(packet) => {
+                let packet_type = self.get_pack_type(&packet);
+                let event_string = format!("[SERVER: {}] Sent {} packet", server_id, packet_type);
+                let event_label = RichText::new(event_string);
+                self.events.push(event_label);
+            },
             ServerEvent::ShortCut(packet) => {
+                let packet_type = self.get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
-                    Some(id) => self.handle_shortcut(id, packet),
+                    Some(id) => {
+                        let event_string = format!("[SERVER: {}] Requested shortcut for packet {} to {}", server_id, packet_type, id);
+                        let event_label = RichText::new(event_string).color(Color32::ORANGE);
+                        self.events.push(event_label);
+                        self.handle_shortcut(id, packet)
+                    },
                     None => unreachable!("Is it possible????"),
                 }
             },
