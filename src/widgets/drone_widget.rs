@@ -130,7 +130,7 @@ impl Widget for DroneWidget {
                 }
             }
 
-            if self.pdr_invalid.borrow().is_empty() {
+            if !self.pdr_invalid.borrow().is_empty() {
                 ui.label(RichText::new(&*self.pdr_invalid.borrow()).color(Color32::RED));
             }
         }).response
