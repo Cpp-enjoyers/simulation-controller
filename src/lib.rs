@@ -320,7 +320,7 @@ impl SimulationController {
 
     /// Utility function to get the type of the `Packet`
     /// Used for logging purposes
-    fn get_pack_type(&self, packet: &Packet) -> String {
+    fn get_pack_type(packet: &Packet) -> String {
         match &packet.pack_type {
             wg_2024::packet::PacketType::MsgFragment(_) => String::from("MsgFragment"),
             wg_2024::packet::PacketType::Ack(_) => String::from("Ack"),
@@ -376,39 +376,39 @@ impl SimulationController {
 
         for (id, event) in event_queue {
             match event {
-                Events::DroneEvent(event) => self.handle_drone_event(&id, event),
-                Events::WebClientEvent(event) => self.handle_web_client_event(&id, event),
-                Events::ChatClientEvent(event) => self.handle_chat_client_event(&id, event),
-                Events::ServerEvent(event) => self.handle_server_event(&id, event),
+                Events::DroneEvent(event) => self.handle_drone_event(id, event),
+                Events::WebClientEvent(event) => self.handle_web_client_event(id, event),
+                Events::ChatClientEvent(event) => self.handle_chat_client_event(id, event),
+                Events::ServerEvent(event) => self.handle_server_event(id, event),
             }
         }
 
     }
 
     /// Handler function for the drone events
-    fn handle_drone_event(&mut self, drone_id: &NodeId, event: DroneEvent) {
+    fn handle_drone_event(&mut self, drone_id: NodeId, event: DroneEvent) {
         match event {
             DroneEvent::PacketSent(packet) => {
-                let packet_type = self.get_pack_type(&packet);
-                let event_string = format!("[DRONE: {}] Sent {} packet", drone_id, packet_type);
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let event_string = format!("[DRONE: {drone_id}] Sent {packet_type} packet");
                 let event_label = RichText::new(event_string);
                 self.events.push(event_label);
             },
             DroneEvent::PacketDropped(packet) => {
-                let packet_type = self.get_pack_type(&packet);
-                let event_string = format!("[DRONE: {}] Dropped {} packet", drone_id, packet_type);
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let event_string = format!("[DRONE: {drone_id}] Dropped {packet_type} packet");
                 let event_label = RichText::new(event_string).color(Color32::RED);
                 self.events.push(event_label);
             },
             DroneEvent::ControllerShortcut(packet) => {
-                let packet_type = self.get_pack_type(&packet);
+                let packet_type = SimulationController::get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
                     Some(id) => {
-                        let event_string = format!("[DRONE: {}] Requested shortcut for packet {} to {}", drone_id, packet_type, id);
+                        let event_string = format!("[DRONE: {drone_id}] Requested shortcut for packet {packet_type} to {id}");
                         let event_label = RichText::new(event_string).color(Color32::ORANGE);
                         self.events.push(event_label);
-                        self.handle_shortcut(id, packet)
+                        self.handle_shortcut(id, packet);
                     },
                     None => unreachable!("Is it possible????"),
                 }
@@ -417,42 +417,44 @@ impl SimulationController {
     }
 
     /// Handler function for the web client events
-    fn handle_web_client_event(&mut self, client_id: &NodeId, event: WebClientEvent) {
+    fn handle_web_client_event(&mut self, client_id: NodeId, event: WebClientEvent) {
         match event {
             WebClientEvent::PacketSent(packet) => {
-                let packet_type = self.get_pack_type(&packet);
-                let event_string = format!("[WEB CLIENT: {}] Sent {} packet", client_id, packet_type);
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let event_string = format!("[WEB CLIENT: {client_id}] Sent {packet_type} packet");
                 let event_label = RichText::new(event_string);
                 self.events.push(event_label);
             },
             WebClientEvent::Shortcut(packet) => {
-                let packet_type = self.get_pack_type(&packet);
+                let packet_type = SimulationController::get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
                     Some(id) => {
-                        let event_string = format!("[WEB CLIENT: {}] Requested shortcut for packet {} to {}", client_id, packet_type, id);
+                        let event_string = format!("[WEB CLIENT: {client_id}] Requested shortcut for packet {packet_type} to {id}");
                         let event_label = RichText::new(event_string).color(Color32::ORANGE);
                         self.events.push(event_label);
-                        self.handle_shortcut(id, packet)
+                        self.handle_shortcut(id, packet);
                     },
                     None => unreachable!("Is it possible????"),
                 }
             },
             WebClientEvent::ListOfFiles(files, server_id) => {
-                let client_idx = self.get_node_idx(*client_id).unwrap();
+                let client_idx = self.get_node_idx(client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                match client {
-                    WidgetType::WebClient(client_widget) => {
-                        client_widget.add_list_of_files(server_id, files);
-                    }
-                    _ => {}
+                // match client {
+                //     WidgetType::WebClient(client_widget) => {
+                //         client_widget.add_list_of_files(server_id, files);
+                //     }
+                //     _ => {}
+                // }
+                if let WidgetType::WebClient(client_widget) = client {
+                    client_widget.add_list_of_files(server_id, files);
                 }
             },
             WebClientEvent::FileFromClient(response, _) => {
                 let folder = Path::new("tmp");
                 let media_folder = Path::new("tmp/media");
                 let (filename, html_file) = response.get_html_file();
-                println!("Received file: {}", filename);
 
                 if !folder.exists() {
                     std::fs::create_dir_all(folder).unwrap();
@@ -464,7 +466,7 @@ impl SimulationController {
 
                 let file_path = folder.join(filename);
                 let mut file = File::create(&file_path).unwrap();
-                file.write_all(&html_file).unwrap();
+                file.write_all(html_file).unwrap();
 
                 for (media_name, media_content) in response.get_media_files() {
                     let media_path = media_folder.join(media_name);
@@ -477,13 +479,17 @@ impl SimulationController {
                 }
             },
             WebClientEvent::ServersTypes(types) => {
-                let client_idx = self.get_node_idx(*client_id).unwrap();
+                let client_idx = self.get_node_idx(client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                match client {
-                    WidgetType::WebClient(client_widget) => {
-                        client_widget.add_server_type(types);
-                    }
-                    _ => {}
+                // match client {
+                //     WidgetType::WebClient(client_widget) => {
+                //         client_widget.add_server_type(types);
+                //     }
+                //     _ => {}
+                // }
+
+                if let WidgetType::WebClient(client_widget) = client {
+                    client_widget.add_server_type(types);
                 }
             },
             WebClientEvent::UnsupportedRequest => {},
@@ -491,28 +497,28 @@ impl SimulationController {
     }
 
     /// Handler function for the chat client events
-    fn handle_chat_client_event(&mut self, chat_client_id: &NodeId, event: ChatClientEvent) {
+    fn handle_chat_client_event(&mut self, chat_client_id: NodeId, event: ChatClientEvent) {
         todo!()
     }
 
     /// Handler function for the server events
-    fn handle_server_event(&mut self, server_id: &NodeId, event: ServerEvent) {
+    fn handle_server_event(&mut self, server_id: NodeId, event: ServerEvent) {
         match event {
             ServerEvent::PacketSent(packet) => {
-                let packet_type = self.get_pack_type(&packet);
-                let event_string = format!("[SERVER: {}] Sent {} packet", server_id, packet_type);
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let event_string = format!("[SERVER: {server_id}] Sent {packet_type} packet");
                 let event_label = RichText::new(event_string);
                 self.events.push(event_label);
             },
             ServerEvent::ShortCut(packet) => {
-                let packet_type = self.get_pack_type(&packet);
+                let packet_type = SimulationController::get_pack_type(&packet);
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
                     Some(id) => {
-                        let event_string = format!("[SERVER: {}] Requested shortcut for packet {} to {}", server_id, packet_type, id);
+                        let event_string = format!("[SERVER: {server_id}] Requested shortcut for packet {packet_type} to {id}");
                         let event_label = RichText::new(event_string).color(Color32::ORANGE);
                         self.events.push(event_label);
-                        self.handle_shortcut(id, packet)
+                        self.handle_shortcut(id, packet);
                     },
                     None => unreachable!("Is it possible????"),
                 }
@@ -520,23 +526,23 @@ impl SimulationController {
         }
     }
 
-    fn update_neighborhood(&mut self, update_type: UpdateType, source_id: u8, source_idx: NodeIndex, n_id: u8) {
+    fn update_neighborhood(&mut self, update_type: &UpdateType, source_id: u8, source_idx: NodeIndex, n_id: u8) {
         match update_type {
             UpdateType::Add => {
                 match self.graph.node(source_idx).unwrap().payload() {
                     WidgetType::Drone(_) => {
                         if let Some(pos) = self.drones.iter().position(|d| d.id == source_id) {
-                            self.drones[pos].connected_node_ids.push(n_id.clone());
+                            self.drones[pos].connected_node_ids.push(n_id);
                         }
                     },
                     WidgetType::Server(_) => {
                         if let Some(pos) = self.servers.iter().position(|d| d.id == source_id) {
-                            self.servers[pos].connected_drone_ids.push(n_id.clone());
+                            self.servers[pos].connected_drone_ids.push(n_id);
                         }
                     },
                     _ => {
                         if let Some(pos) = self.clients.iter().position(|d| d.id == source_id) {
-                            self.clients[pos].connected_drone_ids.push(n_id.clone());
+                            self.clients[pos].connected_drone_ids.push(n_id);
                         }
                     }
                 }
@@ -570,27 +576,26 @@ impl SimulationController {
     }
 
     /**
-     * Here I should validate the input and parse it to a NodeId
+     * Here I should validate the input and parse it to a `NodeId`
      * The input shouldn't be empty and should be a number
      * I should take into account who is trying to add who as a neighbor
      * If the current node is a drone, the neighbor could be drone/client/server
      * If the current node is either a client or a server, the neighbor must be a drone
      * Lastly, the neighbor must exist in the graph
      */
-    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &String) -> Result<NodeIndex, String> {
+    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &str) -> Result<NodeIndex, String> {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
         }
 
         // Parse the input to u8, return error if parsing goes wrong
-        let neighbor_id = match input_neighbor_id.parse::<u8>(){
-            Ok(id) => id,
-            Err(_) => return Err("Wrong ID format".to_string()),
+        let Ok(neighbor_id) = input_neighbor_id.parse::<u8>() else {
+            return Err("Wrong ID format".to_string())
         };
+
         // From the u8 id, retrieve the corresponding NodeIndex in the graph
-        let neighbor_idx = match self.get_node_idx(neighbor_id) {
-            Some(id) => id,
-            None => return Err("ID not found in te graph".to_string()),
+        let Some(neighbor_idx) = self.get_node_idx(neighbor_id) else {
+            return Err("ID not found in te graph".to_string())
         };
 
         if let Some(current_select_node) = self.selected_node {
@@ -599,7 +604,7 @@ impl SimulationController {
                     if drone_widget.get_id() == neighbor_id {
                         return Err("Can't create a connection to itself".to_string())
                     }
-                    return Ok(neighbor_idx)
+                    Ok(neighbor_idx)
                 },
 
                 // Web Client - check if current client has reached it max number of connections (2)
@@ -608,14 +613,14 @@ impl SimulationController {
                     if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
                         // Check if the current client has reached its max number of connections
                         if self.clients[pos].connected_drone_ids.len() == 2 {
-                            return Err(format!("Client {}, reached its max connections", client_id));
+                            Err(format!("Client {client_id}, reached its max connections"))
                         } else {
-                            return Ok(neighbor_idx);
+                            Ok(neighbor_idx)
                         }
-                    } else { return Err("Client not found".to_string()) }
+                    } else { 
+                        Err("Client not found".to_string()) 
+                    }
                 },
-                // Here I include all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
-                (WidgetType::WebClient(_), _) => return Err("Client cannot be connected directly to other client nor server".to_string()),
                 
                 // Chat Clients - check if current client has reached it max number of connections (2)
                 (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_)) => {
@@ -623,21 +628,25 @@ impl SimulationController {
                     if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
                         // Check if the current client has reached its max number of connections
                         if self.clients[pos].connected_drone_ids.len() == 2 {
-                            return Err(format!("Client {}, reached its max connections", client_id));
+                            Err(format!("Client {client_id}, reached its max connections"))
                         } else {
-                            return Ok(neighbor_idx);
+                            Ok(neighbor_idx)
                         }
-                    } else { return Err("Client not found".to_string()) }
+                    } else { 
+                        Err("Client not found".to_string()) 
+                    }
                 },
+                
                 // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
-                (WidgetType::ChatClient(_), _) => return Err("Client cannot be connected directly to other client nor server".to_string()),
+                // and all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
+                (WidgetType::ChatClient(_), _) | (WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
                 
                 // Servers - can be connected to any number of drones (but min. 2)
-                (WidgetType::Server(_), WidgetType::Drone(_)) => return Ok(neighbor_idx),
-                (WidgetType::Server(_), _) => return Err("Server cannot be connected directly to other client nor server".to_string()),
+                (WidgetType::Server(_), WidgetType::Drone(_)) => Ok(neighbor_idx),
+                (WidgetType::Server(_), _) => Err("Server cannot be connected directly to other client nor server".to_string()),
             }
         } else {
-            return Err("No selected node".to_string());
+            Err("No selected node".to_string())
         }
     }
 
@@ -702,12 +711,12 @@ impl SimulationController {
                 let drone_id = drone_widget.get_id();
                 if let Some(pos) = self.drones.iter().position(|d| d.id == drone_id) {
                     if self.drones.get(pos).unwrap().connected_node_ids.len() == 1 {
-                        return Err(format!("Cant remove last connection of drone {}!!!", drone_id));
+                        Err(format!("Cant remove last connection of drone {drone_id}!"))
                     } else {
-                        return Ok(drone_id);
+                        Ok(drone_id)
                     }
                 } else {
-                    return Err("Drone not found".to_string());
+                    Err("Drone not found".to_string())
                 }
             },
             // For clients I should check that they are connected to at least 1 drone
@@ -715,36 +724,36 @@ impl SimulationController {
                 let client_id = web_client_widget.get_id();
                 if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
                     if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                        return Err(format!("Client {} must have at least 1 connection!", client_id));
+                        Err(format!("Client {client_id} must have at least 1 connection!"))
                     } else {
-                        return Ok(client_id);
+                        Ok(client_id)
                     }
                 } else {
-                    return Err("Client not found".to_string());
+                    Err("Client not found".to_string())
                 }
             },
             WidgetType::ChatClient(chat_client_widget) => {
                 let client_id = chat_client_widget.get_id();
                 if let Some(pos) = self.clients.iter().position(|c| c.id == client_id) {
                     if self.clients.get(pos).unwrap().connected_drone_ids.len() == 1 {
-                        return Err(format!("Client {} must have at least 1 connection!", client_id));
+                        Err(format!("Client {client_id} must have at least 1 connection!"))
                     } else {
-                        return Ok(client_id);
+                        Ok(client_id)
                     }
                 } else {
-                    return Err("Client not found".to_string());
+                    Err("Client not found".to_string())
                 }
             },
             WidgetType::Server(server_widget) => {
                 let server_id = server_widget.get_id();
                 if let Some(pos) = self.servers.iter().position(|s| s.id == server_id) {
                     if self.servers.get(pos).unwrap().connected_drone_ids.len() == 2 {
-                        return Err(format!("Server {} must have at least 2 connections", server_id));
+                        Err(format!("Server {server_id} must have at least 2 connections"))
                     } else {
-                        return Ok(server_id);
+                        Ok(server_id)
                     }
                 } else {
-                    return Err("Server not found".to_string());
+                    Err("Server not found".to_string())
                 }
             },
         }
@@ -760,17 +769,14 @@ impl SimulationController {
     /// For servers, they must have at least 2 connections to drones.
     fn validate_edge_removal(&mut self, edge: EdgeIndex) -> Result<(u8, u8), String> {
         // Check if without the edge, every client can still reach every server
-        if let Err(e) = self.check_connectivity(edge) {
-            return Err(e);
-        }
+        self.check_connectivity(edge)?;
 
         // Take the 2 endpoints of the edge to be removed
         let (node_1, node_2) = self.graph.edge_endpoints(edge).unwrap();
 
         match (self.can_remove_sender(node_1), self.can_remove_sender(node_2)) {
             (Ok(id_1), Ok(id_2)) => Ok((id_1, id_2)),
-            (Ok(_), Err(e)) => Err(e),
-            (Err(e), Ok(_)) => Err(e),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
             (Err(_), Err(_)) => Err("Either nodes can't remove each other".to_string()),
         }
     }
@@ -786,7 +792,7 @@ impl SimulationController {
                     let id = drone_widget.get_id();
                     if let Some(pos) = self.drones.iter().position(|d| d.id == id) {
                         if self.drones[pos].connected_node_ids.len() == 1 {
-                            return Err(format!("Drone {} must have at least 1 connection", id));
+                            return Err(format!("Drone {id} must have at least 1 connection"));
                         }
                     }
                 },
@@ -794,7 +800,7 @@ impl SimulationController {
                     let id = web_client_widget.get_id();
                     if let Some(pos) = self.clients.iter().position(|wc| wc.id == id) {
                         if self.clients[pos].connected_drone_ids.len() == 1 {
-                            return Err(format!("Client {} must have at least 1 connection", id));
+                            return Err(format!("Client {id} must have at least 1 connection"));
                         }
                     }
                 },
@@ -802,7 +808,7 @@ impl SimulationController {
                     let id = chat_client_widget.get_id();
                     if let Some(pos) = self.clients.iter().position(|cc| cc.id == id) {
                         if self.clients[pos].connected_drone_ids.len() == 1 {
-                            return Err(format!("Client {} must have at least 1 connection", id));
+                            return Err(format!("Client {id} must have at least 1 connection"));
                         }
                     }
                 },
@@ -810,7 +816,7 @@ impl SimulationController {
                     let id = server_widget.get_id();
                     if let Some(pos) = self.servers.iter().position(|s| s.id == id) {
                         if self.servers[pos].connected_drone_ids.len() == 2 {
-                            return Err(format!("Server {} must have at least 2 connections", id));
+                            return Err(format!("Server {id} must have at least 2 connections"));
                         }
                     }
                 },
@@ -926,10 +932,8 @@ impl SimulationController {
 
     fn render(&mut self, ctx: &egui::Context) {
         SidePanel::right("Panel").show(ctx, |ui| {
-            ui.label("Selected node:");
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut().clone();
-                // let mut node = self.graph.node(idx).unwrap().payload_mut();
                 match node {
                     WidgetType::Drone(drone_widget) => {
                         let drone_id = drone_widget.get_id();
@@ -942,7 +946,7 @@ impl SimulationController {
                             if red_btn.clicked() {
                                 // check if the drone can crash
                                 match self.can_drone_crash(drone_id) {
-                                    Ok(_) => self.crash_drone(idx),
+                                    Ok(()) => self.crash_drone(idx),
                                     Err(error) => self.drone_crash_error = error,
                                 }
                             }
@@ -985,8 +989,8 @@ impl SimulationController {
                                         let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
                                         neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
     
-                                        self.update_neighborhood(UpdateType::Add, current_node_id, idx, neighbor_id);
-                                        self.update_neighborhood(UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+                                        self.update_neighborhood(&UpdateType::Add, current_node_id, idx, neighbor_id);
+                                        self.update_neighborhood(&UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
                                         self.graph.add_edge(idx, neighbor_idx, ());
                                     },
                                     Err(error) => self.add_neighbor_error = error,
@@ -1004,7 +1008,7 @@ impl SimulationController {
                     // Remove edge area
                     if let Some(edge_idx) = self.selected_edge {
                         ui.vertical(|ui| {
-                            ui.label(format!("Selected edge: {:?}", edge_idx));
+                            ui.label(format!("Selected edge: {edge_idx:?}"));
                             let remove_btn = ui.add(Button::new("Remove edge"));
             
                             if remove_btn.clicked() {
@@ -1024,8 +1028,8 @@ impl SimulationController {
                                         node_2_widget.rm_neighbor_helper(node_1);
                                         
                                         // Update state of SCL
-                                        self.update_neighborhood(UpdateType::Remove, node_1, node_1_idx, node_2);
-                                        self.update_neighborhood(UpdateType::Remove, node_2, node_2_idx, node_1);
+                                        self.update_neighborhood(&UpdateType::Remove, node_1, node_1_idx, node_2);
+                                        self.update_neighborhood(&UpdateType::Remove, node_2, node_2_idx, node_1);
                                         // Update graph visualization
                                         self.graph.remove_edges_between(node_1_idx, node_2_idx);
                                     },
