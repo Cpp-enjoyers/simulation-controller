@@ -173,7 +173,7 @@ fn generate_graph(dh: DChannels, wch: WCChannels, cch: CCChannels, sh: SChannels
     eg_graph
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 struct SimulationController {
     id: NodeId,
     drones_channels: HashMap<
@@ -223,7 +223,7 @@ struct SimulationController {
     rm_neighbor_input: String,
     rm_neighbor_error: String,
     drone_crash_error: String,
-    events: Vec<String>
+    events: Vec<RichText>,
 }
 
 impl SimulationController {
@@ -270,7 +270,6 @@ impl SimulationController {
         servers: Vec<Server>,
     ) -> Self {
         let graph = generate_graph(&drones_channels, &web_clients_channels, &chat_clients_channels, &servers_channels, &drones, &clients, &servers);
-        let test_event = vec!["Event 1".to_string(), "Event 2".to_string(), "Event 3".to_string()];
         SimulationController {
             id,
             drones_channels,
@@ -288,8 +287,7 @@ impl SimulationController {
             rm_neighbor_input: String::default(),
             rm_neighbor_error: String::default(),
             drone_crash_error: String::default(),
-            // events: Vec::new(),
-            events: test_event,
+            events: Vec::new(),
         }
     }
 
@@ -363,10 +361,18 @@ impl SimulationController {
 
     }
 
-    fn handle_drone_event(&self, drone_id: &NodeId, event: DroneEvent) {
+    fn handle_drone_event(&mut self, drone_id: &NodeId, event: DroneEvent) {
         match event {
-            DroneEvent::PacketSent(packet) => {},
-            DroneEvent::PacketDropped(packet) => {},
+            DroneEvent::PacketSent(packet) => {
+                let event_string = format!("[DRONE: {}] Sent packet", drone_id);
+                let event_label = RichText::new(event_string);
+                self.events.push(event_label);
+            },
+            DroneEvent::PacketDropped(packet) => {
+                let event_string = format!("[DRONE: {}] Dropped packet", drone_id);
+                let event_label = RichText::new(event_string).color(Color32::RED);
+                self.events.push(event_label);
+            },
             DroneEvent::ControllerShortcut(packet) => {
                 let destination_id = packet.routing_header.destination();
                 match destination_id {
@@ -1096,7 +1102,7 @@ impl SimulationController {
                     self.events.len(), 
                     |ui, row_range| {
                         for row in row_range {
-                            ui.label(self.events[row].to_string());
+                            ui.label(self.events[row].clone());
                         }
                 });
             });
