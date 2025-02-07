@@ -88,8 +88,12 @@ impl DroneWidget {
         if input_pdr.is_empty() {
             return Err("Empty ID field".to_string());
         }
+        let pdr = input_pdr.parse::<f32>();
 
-        let pdr = input_pdr.parse::<f32>().unwrap();
+        if pdr.is_err() {
+            return Err("Wrong ID format".to_string());
+        }
+        let pdr = pdr.unwrap();
         // Bro....this is crazy
         if !(0.0..=1.0).contains(&pdr) {
             return Err("PDR must be between 0.0 and 1.0".to_string());
