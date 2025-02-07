@@ -25,6 +25,7 @@ use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, s
 enum Events {
     DroneEvent(DroneEvent),
     WebClientEvent(WebClientEvent),
+    ChatClientEvent(ChatClientEvent),
     ServerEvent(ServerEvent),
 }
 
@@ -317,6 +318,8 @@ impl SimulationController {
         None
     }
 
+    /// Utility function to get the type of the `Packet`
+    /// Used for logging purposes
     fn get_pack_type(&self, packet: &Packet) -> String {
         match &packet.pack_type {
             wg_2024::packet::PacketType::MsgFragment(_) => String::from("MsgFragment"),
@@ -327,6 +330,8 @@ impl SimulationController {
         }
     }
 
+    /// Function to handle the shortcut of a packet
+    /// The packet is sent to the corresponding node
     fn handle_shortcut(&self, id: NodeId, packet: Packet) {
         if let Some(ch) = self.drones_channels.get(&id) {
             ch.2.send(packet).unwrap();
@@ -337,6 +342,12 @@ impl SimulationController {
         }
     }
 
+    /// Function to handle all the incoming events
+    /// 
+    /// Each time the GUI is refreshed, this function is called.
+    /// It listens to all the channels of the drones, web clients, chat clients and servers,
+    /// storing the received events in a queue.
+    /// Then for each event in the queue, it calls the corresponding handler function.
     fn handle_event(&mut self) {
         let mut event_queue: Vec<(NodeId, Events)> = Vec::new();
         for (drone_id, drone_ch) in &self.drones_channels {
@@ -351,7 +362,11 @@ impl SimulationController {
             }
         }
 
-        // Here I should add the chat clients events
+        for (client_id, client_ch) in &self.chat_clients_channels {
+            if let Ok(event) = client_ch.1.try_recv() {
+                event_queue.push((*client_id, Events::ChatClientEvent(event)));
+            }
+        }
 
         for (server_id, server_ch) in &self.servers_channels {
             if let Ok(event) = server_ch.1.try_recv() {
@@ -362,13 +377,15 @@ impl SimulationController {
         for (id, event) in event_queue {
             match event {
                 Events::DroneEvent(event) => self.handle_drone_event(&id, event),
-                Events::WebClientEvent(event) => self.handle_client_event(&id, event),
+                Events::WebClientEvent(event) => self.handle_web_client_event(&id, event),
+                Events::ChatClientEvent(event) => self.handle_chat_client_event(&id, event),
                 Events::ServerEvent(event) => self.handle_server_event(&id, event),
             }
         }
 
     }
 
+    /// Handler function for the drone events
     fn handle_drone_event(&mut self, drone_id: &NodeId, event: DroneEvent) {
         match event {
             DroneEvent::PacketSent(packet) => {
@@ -399,7 +416,8 @@ impl SimulationController {
         }
     }
 
-    fn handle_client_event(&mut self, client_id: &NodeId, event: WebClientEvent) {
+    /// Handler function for the web client events
+    fn handle_web_client_event(&mut self, client_id: &NodeId, event: WebClientEvent) {
         match event {
             WebClientEvent::PacketSent(packet) => {
                 let packet_type = self.get_pack_type(&packet);
@@ -471,6 +489,13 @@ impl SimulationController {
             WebClientEvent::UnsupportedRequest => {},
         }
     }
+
+    /// Handler function for the chat client events
+    fn handle_chat_client_event(&mut self, chat_client_id: &NodeId, event: ChatClientEvent) {
+        todo!()
+    }
+
+    /// Handler function for the server events
     fn handle_server_event(&mut self, server_id: &NodeId, event: ServerEvent) {
         match event {
             ServerEvent::PacketSent(packet) => {
