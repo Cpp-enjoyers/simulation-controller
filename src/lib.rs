@@ -1053,7 +1053,7 @@ impl SimulationController {
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
             let text_style = TextStyle::Body;
             let row_height = ui.text_style_height(&text_style);
-            ui.columns_const(|[left, center, right]| {
+            ui.columns_const(|[left, right]| {
                 // Left column should containt the add sender and remove edge buttons
                 left.horizontal(|ui| {
                     if let Some(idx) = self.selected_node {
