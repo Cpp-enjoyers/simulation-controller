@@ -1090,10 +1090,11 @@ impl SimulationController {
                             }
                         });
                     }
+                    ui.add(Separator::default().vertical());
                 }); // End of left column
 
                 // Add vertical separator
-                center.add(Separator::default().vertical());
+                // center.add(Separator::default().vertical());
 
                 // Right column should contain the event logger
                 ScrollArea::vertical().stick_to_bottom(true).show_rows(
