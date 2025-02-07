@@ -25,7 +25,7 @@ pub struct WebClientWidget {
     id_input: Rc<RefCell<String>>,
     /// Flag to indicate if the input for the server id is invalid
     is_id_invalid: bool,
-    id_input_error: String,
+    id_input_error: Rc<RefCell<String>>,
     /// The list of files contained on the servers
     list_of_files: HashMap<NodeId, Vec<String>>,
 }
@@ -42,7 +42,7 @@ impl WebClientWidget {
             servers_types: HashMap::default(),
             id_input: Rc::new(RefCell::new(String::default())),
             is_id_invalid: false,
-            id_input_error: String::default(),
+            id_input_error: Rc::new(RefCell::new(String::default())),
             list_of_files: HashMap::default(),
         }
     }
@@ -127,11 +127,11 @@ impl Widget for WebClientWidget {
             if ui.button("Send").clicked() {
                 match self.validate_parse_id(&self.id_input.borrow()) {
                     Ok(id) => {
-                        self.id_input_error = String::default();
+                        self.id_input_error.borrow_mut().clear();
                         let cmd = WebClientCommand::AskListOfFiles(id);
                         self.command_ch.send(cmd).expect("msg not sent");
                     },
-                    Err(error) => self.id_input_error = error,
+                    Err(error) => *self.id_input_error.borrow_mut() = error,
                     // Some(id) => {
                     //     self.is_id_invalid = false;
                     //     let cmd = WebClientCommand::AskListOfFiles(id);
@@ -144,8 +144,8 @@ impl Widget for WebClientWidget {
             // if self.is_id_invalid {
             //     ui.label(RichText::new("Invalid or empty id field!").color(egui::Color32::RED));
             // }
-            if !self.id_input_error.is_empty() {
-                ui.label(RichText::new(&self.id_input_error).color(egui::Color32::RED));
+            if !self.id_input_error.borrow().is_empty() {
+                ui.label(RichText::new(&*self.id_input_error.borrow()).color(egui::Color32::RED));
             }
 
             ui.separator();
