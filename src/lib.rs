@@ -662,6 +662,13 @@ impl SimulationController {
                 return Err(format!("By removing edge {}, client {} wouldn't reach every server", edge_to_remove.index(), client.id));
             }
         }
+
+        // Check if graph is still connected
+        let cc = petgraph::algo::tarjan_scc(&copy_graph.g);
+        if cc.len() > 1 {
+            return Err("By removing the edge, the graph would become disconnected".to_string());
+        }
+
         Ok(())
     }
 
@@ -731,24 +738,25 @@ impl SimulationController {
         }
     }
 
-    // idea:
-    // prendo i due endpoints (NodeIndex, NodeIndex)
-    // controllo se togliendo arco ottengo grafo disconnesso:
-    //  - si -> torno errore
-    //  - no -> procedo con il controllo
-    // methodo che riceve NodeIndex e controlla se per quel nodo si può togliere una connessione
-    // uso il metodo per controllare se entrambi i nodi possono rimuovere una connessione
+    /// This function checks if an edge can be removed
+    /// First it checks if the graph would become disconnected.
+    /// The graph becomes disconnected if the removal of the edge would create more than 1 connected component.
+    /// Or if the removal of the edge would make a client unable to reach every server.
+    /// Then it checks if the nodes (endpoints of the edge) can remove each other.
+    /// For drones, they must have at least 1 connection, otherwise the graph becomes disconnected.
+    /// For clients, they must have at least 1 connection to a drone.
+    /// For servers, they must have at least 2 connections to drones.
     fn validate_edge_removal(&mut self, edge: EdgeIndex) -> Result<(u8, u8), String> {
-        
+        // Check if without the edge, every client can still reach every server
         if let Err(e) = self.check_connectivity(edge) {
             return Err(e);
         }
 
         // Take the 2 endpoints of the edge to be removed
         let (node_1, node_2) = self.graph.edge_endpoints(edge).unwrap();
-        if self.is_graph_disconnected(node_1, node_2) {
-            return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
-        }
+        // if self.is_graph_disconnected(node_1, node_2) {
+        //     return Err("Can't remove the edge, otherwise the graph would become disconnected".to_string());
+        // }
 
         match (self.can_remove_sender(node_1), self.can_remove_sender(node_2)) {
             (Ok(id_1), Ok(id_2)) => Ok((id_1, id_2)),
