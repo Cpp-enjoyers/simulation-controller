@@ -1028,29 +1028,7 @@ impl SimulationController {
                 ui.label("No node selected")
             }
         });
-        CentralPanel::default().show(ctx, |ui| {
-            let graph_widget: &mut GraphView<
-                '_,
-                WidgetType,
-                (),
-                petgraph::Undirected,
-                u32,
-                egui_graphs::DefaultNodeShape,
-                egui_graphs::DefaultEdgeShape,
-                LayoutStateRandom,
-                LayoutRandom,
-            > = &mut GraphView::new(&mut self.graph)
-                .with_interactions(
-                    &SettingsInteraction::new()
-                    .with_node_selection_enabled(true)
-                    .with_dragging_enabled(true)
-                    .with_edge_selection_enabled(true),
-                )
-                .with_styles(&SettingsStyle::new().with_labels_always(true))
-                .with_navigations(&SettingsNavigation::new().with_zoom_and_pan_enabled(true));
-            ui.add(graph_widget);       
-        });
-        TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
+        TopBottomPanel::bottom("Bottom_panel").resizable(true).show(ctx, |ui| {
             let text_style = TextStyle::Body;
             let row_height = ui.text_style_height(&text_style);
             ui.columns_const(|[left, right]| {
@@ -1146,6 +1124,28 @@ impl SimulationController {
                         }
                 });
             });
+        });
+        CentralPanel::default().show(ctx, |ui| {
+            let graph_widget: &mut GraphView<
+                '_,
+                WidgetType,
+                (),
+                petgraph::Undirected,
+                u32,
+                egui_graphs::DefaultNodeShape,
+                egui_graphs::DefaultEdgeShape,
+                LayoutStateRandom,
+                LayoutRandom,
+            > = &mut GraphView::new(&mut self.graph)
+                .with_interactions(
+                    &SettingsInteraction::new()
+                    .with_node_selection_enabled(true)
+                    .with_dragging_enabled(true)
+                    .with_edge_selection_enabled(true),
+                )
+                .with_styles(&SettingsStyle::new().with_labels_always(true))
+                .with_navigations(&SettingsNavigation::new().with_zoom_and_pan_enabled(true));
+            ui.add(graph_widget);       
         });
     }
 
