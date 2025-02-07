@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, Color32, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel};
+use egui::{Button, CentralPanel, Color32, RichText, ScrollArea, Separator, SidePanel, TextStyle, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
@@ -1008,7 +1008,7 @@ impl SimulationController {
         TopBottomPanel::bottom("Bottom_panel").show(ctx, |ui| {
             let text_style = TextStyle::Body;
             let row_height = ui.text_style_height(&text_style);
-            ui.columns_const(|[left, right]| {
+            ui.columns_const(|[left, center, right]| {
                 // Left column should containt the add sender and remove edge buttons
                 left.horizontal(|ui| {
                     if let Some(idx) = self.selected_node {
@@ -1085,6 +1085,9 @@ impl SimulationController {
                         });
                     }
                 }); // End of left column
+
+                // Add vertical separator
+                center.add(Separator::default().vertical());
 
                 // Right column should contain the event logger
                 ScrollArea::vertical().stick_to_bottom(true).show_rows(
