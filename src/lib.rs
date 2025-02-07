@@ -346,12 +346,7 @@ impl SimulationController {
             WebClientEvent::ListOfFiles(files, server_id) => {
                 let client_idx = self.get_node_idx(client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                // match client {
-                //     WidgetType::WebClient(client_widget) => {
-                //         client_widget.add_list_of_files(server_id, files);
-                //     }
-                //     _ => {}
-                // }
+                
                 if let WidgetType::WebClient(client_widget) = client {
                     client_widget.add_list_of_files(server_id, files);
                 }
@@ -386,12 +381,6 @@ impl SimulationController {
             WebClientEvent::ServersTypes(types) => {
                 let client_idx = self.get_node_idx(client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-                // match client {
-                //     WidgetType::WebClient(client_widget) => {
-                //         client_widget.add_server_type(types);
-                //     }
-                //     _ => {}
-                // }
 
                 if let WidgetType::WebClient(client_widget) = client {
                     client_widget.add_server_type(types);
@@ -403,7 +392,45 @@ impl SimulationController {
 
     /// Handler function for the chat client events
     fn handle_chat_client_event(&mut self, chat_client_id: NodeId, event: ChatClientEvent) {
-        todo!()
+        match event {
+            ChatClientEvent::PacketSent(packet) => {
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let event_string = format!("[CHAT CLIENT: {chat_client_id}] Sent {packet_type} packet");
+                let event_label = RichText::new(event_string);
+                self.events.push(event_label);
+            },
+            ChatClientEvent::Shortcut(packet) => {
+                let packet_type = SimulationController::get_pack_type(&packet);
+                let destination_id = packet.routing_header.destination();
+                match destination_id {
+                    Some(id) => {
+                        let event_string = format!("[CHAT CLIENT: {chat_client_id}] Requested shortcut for packet {packet_type} to {id}");
+                        let event_label = RichText::new(event_string).color(Color32::ORANGE);
+                        self.events.push(event_label);
+                        self.handle_shortcut(id, packet);
+                    },
+                    None => unreachable!("Is it possible????"),
+                }
+            },
+            ChatClientEvent::ServersTypes(types) => {
+                let client_idx = self.get_node_idx(chat_client_id).unwrap();
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+
+                if let WidgetType::ChatClient(client_widget) = client {
+                    client_widget.add_server_type(&types);
+                }
+            },
+            ChatClientEvent::ClientsConnectedToChatServer(server_id, connected_clients) => {
+                let client_idx = self.get_node_idx(chat_client_id).unwrap();
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+
+                if let WidgetType::ChatClient(client_widget) = client {
+                    client_widget.update_connected_client(server_id, connected_clients);
+                }
+            },
+            ChatClientEvent::NewMessageFrom(_) => todo!(),
+            ChatClientEvent::UnsupportedRequest => {},
+        }
     }
 
     /// Handler function for the server events

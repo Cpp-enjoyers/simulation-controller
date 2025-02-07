@@ -11,6 +11,7 @@ pub struct ChatClientWidget {
     id: NodeId,
     command_ch: Sender<ChatClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
+    list_connected_clients: HashMap<NodeId, Vec<u8>>,
 }
 
 impl ChatClientWidget {
@@ -19,6 +20,7 @@ impl ChatClientWidget {
             id,
             command_ch,
             servers_types: HashMap::default(),
+            list_connected_clients: HashMap::default(),
         }
     }
 
@@ -43,15 +45,21 @@ impl ChatClientWidget {
             .send(ChatClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
     }
 
-    /**
-     * Add the list of chat servers to the widget
-     */
+    /// Function to add the server types to the chat client
+    /// The server type is associated with the `server_id`
+    /// The response is received from the mimicked chat client through the `ChatClientEvent::ServersTypes` event
     pub fn add_server_type(&mut self, response: &HashMap<NodeId, ServerType>) {
         for (k, v) in response {
             if *v == ServerType::ChatServer {
                 self.servers_types.insert(*k, *v);
             }
         }
+    }
+
+    /// Function to update the list of connected clients to a specific chat server
+    /// The list of connected clients is associated with the `server_id`
+    pub fn update_connected_client(&mut self, server_id: NodeId, connected_clients: Vec<u8>) {
+        self.list_connected_clients.insert(server_id, connected_clients);
     }
 
     #[must_use] pub fn get_id(&self) -> NodeId {
