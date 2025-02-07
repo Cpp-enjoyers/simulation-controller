@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, Color32, RichText, ScrollArea, Separator, SidePanel, TextStyle, TopBottomPanel};
+use egui::{Button, CentralPanel, Color32, Layout, RichText, ScrollArea, Separator, SidePanel, TextStyle, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
@@ -896,11 +896,17 @@ impl SimulationController {
                 ui.label("No node selected");
             }
 
-            ui.add_space(ui.available_height() - ui.spacing().item_spacing.y);
+            // ui.add_space(ui.available_height() - ui.spacing().item_spacing.y);
 
-            if ui.button("Add Drone").clicked() {
-                println!("Add Drone button clicked");
-            }
+            // if ui.button("Add Drone").clicked() {
+            //     println!("Add Drone button clicked");
+            // }
+
+            ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                if ui.button("Add Drone").clicked() {
+                    println!("Add Drone button clicked");
+                }
+            });
         });
         TopBottomPanel::bottom("Bottom_panel").resizable(true).show(ctx, |ui| {
             let text_style = TextStyle::Body;
