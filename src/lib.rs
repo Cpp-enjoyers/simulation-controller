@@ -18,7 +18,7 @@ use wg_2024::{
     network::NodeId,
     packet::Packet,
 };
-mod widgets;
+pub mod widgets;
 use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, server_widget::ServerWidget, web_client_widget::WebClientWidget, WidgetType};
 
 #[derive(Clone, Debug)]
@@ -1088,9 +1088,11 @@ impl eframe::App for SimulationController {
      * TODOS:
      * 1 Event logger
      * 2 Chat client ui
+     * 4 Documentation (partially done)
+     * 
+     * DONE (hopefully)
      * 3 Drone crash command handling
      *  - Check if a drone can crash
-     * 4 Documentation
      */
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_event();
