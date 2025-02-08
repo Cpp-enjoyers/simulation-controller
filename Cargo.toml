@@ -14,3 +14,4 @@ petgraph = "0.6"
 tempfile = "3.16.0"
 webbrowser = "1.0.3"
 scraper = "0.22"
+ap2024_unitn_cppenjoyers_drone = { git = "https://github.com/Cpp-enjoyers/drone.git" }

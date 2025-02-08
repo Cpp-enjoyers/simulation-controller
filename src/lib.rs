@@ -13,10 +13,9 @@ use petgraph::{
 };
 use std::{collections::{HashMap, HashSet, VecDeque}, fs::File, io::Write, path::Path};
 use wg_2024::{
-    config::{Client, Drone, Server},
-    controller::{DroneCommand, DroneEvent},
-    network::NodeId,
-    packet::Packet,
+    config::{Client, Drone, Server}, 
+    controller::{DroneCommand, DroneEvent}, 
+    drone::Drone as DroneTrait, network::NodeId, packet::Packet
 };
 pub mod widgets;
 use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, server_widget::ServerWidget, web_client_widget::WebClientWidget, WidgetType};
@@ -850,6 +849,30 @@ impl SimulationController {
         self.selected_node = None;
     }
 
+    fn spawn_drone(&mut self) {
+        let new_id = 100;
+        let (sender_command, receiver_command): (Sender<DroneCommand>, Receiver<DroneCommand>) = crossbeam_channel::unbounded();
+        let (send_event, receive_event): (Sender<DroneEvent>, Receiver<DroneEvent>) = crossbeam_channel::unbounded();
+        let (packet_send, packet_recv): (Sender<Packet>, Receiver<Packet>) = crossbeam_channel::unbounded();
+        let nbrs = HashMap::new();
+        let pdr = 0.0;
+        let mut new_drone = ap2024_unitn_cppenjoyers_drone::CppEnjoyersDrone::new(
+            new_id, 
+            send_event,
+            receiver_command,
+            packet_recv.clone(), 
+            nbrs, 
+            pdr
+        );
+
+        self.drones_channels.insert(new_id, (sender_command.clone(), receive_event, packet_send, packet_recv));
+        self.drones.push(Drone { id: new_id, connected_node_ids: vec![], pdr });
+        self.graph.add_node(WidgetType::Drone(DroneWidget::new(new_id, sender_command.clone())));
+        std::thread::spawn(move || {
+            new_drone.run();
+        });
+    }
+
     fn read_data(&mut self) {
         if !self.graph.selected_nodes().is_empty() {
             let idx = self.graph.selected_nodes().first().unwrap();
@@ -896,16 +919,10 @@ impl SimulationController {
                 ui.label("No node selected");
             }
 
-            // ui.add_space(ui.available_height() - ui.spacing().item_spacing.y);
-
-            // if ui.button("Add Drone").clicked() {
-            //     println!("Add Drone button clicked");
-            // }
-
             ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
                 ui.add_space(10.0);
                 if ui.button("Add Drone").clicked() {
-                    println!("Add Drone button clicked");
+                    self.spawn_drone();
                 }
             });
         });
@@ -985,11 +1002,8 @@ impl SimulationController {
                             }
                         });
                     }
-                    ui.add(Separator::default().vertical());
+                    // ui.add(Separator::default().vertical());
                 }); // End of left column
-
-                // Add vertical separator
-                // center.add(Separator::default().vertical());
 
                 // Right column should contain the event logger
                 ScrollArea::vertical().stick_to_bottom(true).show_rows(
@@ -997,6 +1011,7 @@ impl SimulationController {
                     row_height, 
                     self.events.len(), 
                     |ui, row_range| {
+                        ui.add(Separator::default().vertical());
                         for row in row_range {
                             ui.label(self.events[row].clone());
                         }
