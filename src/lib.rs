@@ -875,7 +875,8 @@ impl SimulationController {
 
         self.drones_channels.insert(new_id, (sender_command.clone(), receive_event, packet_send, packet_recv));
         self.drones.push(Drone { id: new_id, connected_node_ids: vec![], pdr });
-        self.graph.add_node(WidgetType::Drone(DroneWidget::new(new_id, sender_command.clone())));
+        let drone_idx = self.graph.add_node(WidgetType::Drone(DroneWidget::new(new_id, sender_command.clone())));
+        self.graph.node_mut(drone_idx).unwrap().set_label(format!("Drone {new_id}"));
         // consider changing the label of the drone
         std::thread::spawn(move || {
             new_drone.run();
@@ -965,32 +966,6 @@ impl SimulationController {
                                     },
                                     Err(error) => self.add_neighbor_error = error,
                                 }
-                                // rework idea:
-                                // 1. check if the input is valid
-                                // match self.validate_add_sender_input(&self.add_neighbor_input.clone()) {
-                                //     Ok(neighbor_idx) => {
-
-                                //     },
-                                //     Err(error) => self.add_neighbor_error = error,
-                                // }
-                                // // 2. check if both nodes can add each other as neighbors
-                                // match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-                                //     Ok(neighbor_idx) => {
-                                //         let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
-                                //         let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
-    
-                                //         let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
-                                //         current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
-    
-                                //         let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
-                                //         neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
-    
-                                //         self.update_neighborhood(&UpdateType::Add, current_node_id, idx, neighbor_id);
-                                //         self.update_neighborhood(&UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
-                                //         self.graph.add_edge(idx, neighbor_idx, ());
-                                //     },
-                                //     Err(error) => self.add_neighbor_error = error,
-                                // }
                             }
     
                             if !self.add_neighbor_error.is_empty() {
