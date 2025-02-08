@@ -506,6 +506,101 @@ impl SimulationController {
         }
     }
 
+    fn validate_add_sender_input(&self, input_neighbor_id: &str) -> Result<NodeIndex, String> {
+        if input_neighbor_id.is_empty() {
+            return Err("The input field cannot be empty".to_string());
+        }
+
+        // Parse the input to u8, return error if parsing goes wrong
+        let Ok(neighbor_id) = input_neighbor_id.parse::<u8>() else {
+            return Err("Wrong ID format".to_string())
+        };
+
+        // From the u8 id, retrieve the corresponding NodeIndex in the graph
+        let Some(neighbor_idx) = self.get_node_idx(neighbor_id) else {
+            return Err("ID not found in te graph".to_string())
+        };
+
+        Ok(neighbor_idx)
+    }
+
+    fn can_client_add_sender(&self, client_id: NodeId) -> Result<u8, String> {
+        if let Some(client_pos) = self.clients.iter().position(|c| c.id == client_id) {
+            if self.clients[client_pos].connected_drone_ids.len() == 2 {
+                Err(format!("Client {client_id} reached its max connections"))
+            } else {
+                Ok(client_id)
+            }
+        } else {
+            Err("Client not found".to_string())
+        }
+    }
+
+    fn can_add_sender(&self, source_idx: NodeIndex, neighbor_idx: NodeIndex) -> Result<(NodeIndex, NodeIndex), String> {
+        match (self.graph.node(source_idx).unwrap().payload(), self.graph.node(neighbor_idx).unwrap().payload()) {
+            (WidgetType::Drone(_), WidgetType::Drone(_)) => {
+                // Avoid creating a connection to itself
+                if source_idx == neighbor_idx {
+                    return Err("Can't create a connection to itself".to_string());
+                }
+                Ok((source_idx, neighbor_idx))
+            },
+            // For clients, check if the client has reached its max number of connections (2)
+            (WidgetType::Drone(_), WidgetType::WebClient(web_client_widget)) => {
+                let client_id = web_client_widget.get_id();
+                
+                match self.can_client_add_sender(client_id) {
+                    Ok(_) => Ok((source_idx, neighbor_idx)),
+                    Err(e) => Err(e),
+                }
+            },
+            // For clients, check if the client has reached its max number of connections (2)
+            (WidgetType::Drone(_), WidgetType::ChatClient(chat_client_widget)) => {
+                let client_id = chat_client_widget.get_id();
+                
+                match self.can_client_add_sender(client_id) {
+                    Ok(_) => Ok((source_idx, neighbor_idx)),
+                    Err(e) => Err(e),
+                }
+            },
+            (WidgetType::Drone(_), WidgetType::Server(_)) => Ok((source_idx, neighbor_idx)),
+
+            (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_)) => {
+                let client_id = web_client_widget.get_id();
+                
+                match self.can_client_add_sender(client_id) {
+                    Ok(_) => Ok((source_idx, neighbor_idx)),
+                    Err(e) => Err(e),
+                }
+            },
+            (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_)) => {
+                let client_id = chat_client_widget.get_id();
+                
+                match self.can_client_add_sender(client_id) {
+                    Ok(_) => Ok((source_idx, neighbor_idx)),
+                    Err(e) => Err(e),
+                }
+            },
+
+            // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
+            // and all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
+            (WidgetType::ChatClient(_) | WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
+
+            // Server can be connected to any number of drones, but not to other clients or servers
+            (WidgetType::Server(_), WidgetType::Drone(_)) => Ok((source_idx, neighbor_idx)),
+            (WidgetType::Server(_), _) => Err("Server cannot be connected directly to other client nor server".to_string()),
+        }
+    }
+
+    /// This function checks if an edge can be added between two nodes
+    /// 
+    /// First, it checks if the input is valid, calling the `validate_add_sender_input` function.
+    /// Then, it checks if the nodes can be connected, calling the `can_add_sender` function.
+    fn validate_add_sender(&mut self, source_idx: NodeIndex, input_neighbor_id: &str) -> Result<(NodeIndex, NodeIndex), String> {
+        let neighbor_idx = self.validate_add_sender_input(input_neighbor_id)?;
+
+        self.can_add_sender(source_idx, neighbor_idx)
+    }
     /**
      * Here I should validate the input and parse it to a `NodeId`
      * The input shouldn't be empty and should be a number
@@ -868,6 +963,7 @@ impl SimulationController {
         self.drones_channels.insert(new_id, (sender_command.clone(), receive_event, packet_send, packet_recv));
         self.drones.push(Drone { id: new_id, connected_node_ids: vec![], pdr });
         self.graph.add_node(WidgetType::Drone(DroneWidget::new(new_id, sender_command.clone())));
+        // consider changing the label of the drone
         std::thread::spawn(move || {
             new_drone.run();
         });
@@ -939,14 +1035,14 @@ impl SimulationController {
                             ui.text_edit_singleline(&mut self.add_neighbor_input);
                             let add_btn = ui.add(Button::new("Add sender"));
                             if add_btn.clicked() {
-                                match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
-                                    Ok(neighbor_idx) => {
+                                match self.validate_add_sender(idx, &self.add_neighbor_input.clone()) {
+                                    Ok((source_idx, neighbor_idx)) => {
                                         let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
-                                        let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
-    
+                                        let (current_node_id, current_node_ch) = self.get_sender_channel(source_idx);
+
                                         let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
                                         current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
-    
+
                                         let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
                                         neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
     
@@ -956,6 +1052,32 @@ impl SimulationController {
                                     },
                                     Err(error) => self.add_neighbor_error = error,
                                 }
+                                // rework idea:
+                                // 1. check if the input is valid
+                                // match self.validate_add_sender_input(&self.add_neighbor_input.clone()) {
+                                //     Ok(neighbor_idx) => {
+
+                                //     },
+                                //     Err(error) => self.add_neighbor_error = error,
+                                // }
+                                // // 2. check if both nodes can add each other as neighbors
+                                // match self.validate_parse_neighbor_id(&self.add_neighbor_input.clone()) {
+                                //     Ok(neighbor_idx) => {
+                                //         let (neighbor_id, neighbor_ch) = self.get_sender_channel(neighbor_idx);
+                                //         let (current_node_id, current_node_ch) = self.get_sender_channel(idx);
+    
+                                //         let current_node_widget = self.graph.node_mut(idx).unwrap().payload_mut();
+                                //         current_node_widget.add_neighbor_helper(neighbor_id, neighbor_ch);
+    
+                                //         let neighbor_widget = self.graph.node_mut(neighbor_idx).unwrap().payload_mut();
+                                //         neighbor_widget.add_neighbor_helper(current_node_id, current_node_ch);
+    
+                                //         self.update_neighborhood(&UpdateType::Add, current_node_id, idx, neighbor_id);
+                                //         self.update_neighborhood(&UpdateType::Add, neighbor_id, neighbor_idx, current_node_id);
+                                //         self.graph.add_edge(idx, neighbor_idx, ());
+                                //     },
+                                //     Err(error) => self.add_neighbor_error = error,
+                                // }
                             }
     
                             if !self.add_neighbor_error.is_empty() {
