@@ -546,7 +546,9 @@ impl SimulationController {
                 Ok((source_idx, neighbor_idx))
             },
             // For clients, check if the client has reached its max number of connections (2)
-            (WidgetType::Drone(_), WidgetType::WebClient(web_client_widget)) => {
+            (WidgetType::Drone(_), WidgetType::WebClient(web_client_widget)) | 
+            (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_))
+             => {
                 let client_id = web_client_widget.get_id();
                 
                 match self.can_client_add_sender(client_id) {
@@ -555,7 +557,9 @@ impl SimulationController {
                 }
             },
             // For clients, check if the client has reached its max number of connections (2)
-            (WidgetType::Drone(_), WidgetType::ChatClient(chat_client_widget)) => {
+            (WidgetType::Drone(_), WidgetType::ChatClient(chat_client_widget)) |
+            (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_))
+             => {
                 let client_id = chat_client_widget.get_id();
                 
                 match self.can_client_add_sender(client_id) {
@@ -563,32 +567,15 @@ impl SimulationController {
                     Err(e) => Err(e),
                 }
             },
-            (WidgetType::Drone(_), WidgetType::Server(_)) => Ok((source_idx, neighbor_idx)),
-
-            (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_)) => {
-                let client_id = web_client_widget.get_id();
-                
-                match self.can_client_add_sender(client_id) {
-                    Ok(_) => Ok((source_idx, neighbor_idx)),
-                    Err(e) => Err(e),
-                }
-            },
-            (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_)) => {
-                let client_id = chat_client_widget.get_id();
-                
-                match self.can_client_add_sender(client_id) {
-                    Ok(_) => Ok((source_idx, neighbor_idx)),
-                    Err(e) => Err(e),
-                }
-            },
+            (WidgetType::Drone(_), WidgetType::Server(_)) | 
+            (WidgetType::Server(_), WidgetType::Drone(_)) => Ok((source_idx, neighbor_idx)),
+            // Server can be connected to any number of drones, but not to other clients or servers
+            (WidgetType::Server(_), _) => Err("Server cannot be connected directly to other client nor server".to_string()),
 
             // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
             // and all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
             (WidgetType::ChatClient(_) | WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
 
-            // Server can be connected to any number of drones, but not to other clients or servers
-            (WidgetType::Server(_), WidgetType::Drone(_)) => Ok((source_idx, neighbor_idx)),
-            (WidgetType::Server(_), _) => Err("Server cannot be connected directly to other client nor server".to_string()),
         }
     }
 
@@ -600,80 +587,6 @@ impl SimulationController {
         let neighbor_idx = self.validate_add_sender_input(input_neighbor_id)?;
 
         self.can_add_sender(source_idx, neighbor_idx)
-    }
-    /**
-     * Here I should validate the input and parse it to a `NodeId`
-     * The input shouldn't be empty and should be a number
-     * I should take into account who is trying to add who as a neighbor
-     * If the current node is a drone, the neighbor could be drone/client/server
-     * If the current node is either a client or a server, the neighbor must be a drone
-     * Lastly, the neighbor must exist in the graph
-     */
-    fn validate_parse_neighbor_id(&mut self, input_neighbor_id: &str) -> Result<NodeIndex, String> {
-        if input_neighbor_id.is_empty() {
-            return Err("The input field cannot be empty".to_string());
-        }
-
-        // Parse the input to u8, return error if parsing goes wrong
-        let Ok(neighbor_id) = input_neighbor_id.parse::<u8>() else {
-            return Err("Wrong ID format".to_string())
-        };
-
-        // From the u8 id, retrieve the corresponding NodeIndex in the graph
-        let Some(neighbor_idx) = self.get_node_idx(neighbor_id) else {
-            return Err("ID not found in te graph".to_string())
-        };
-
-        if let Some(current_select_node) = self.selected_node {
-            match (self.graph.node(current_select_node).unwrap().payload(), self.graph.node(neighbor_idx).unwrap().payload()) {
-                (WidgetType::Drone(drone_widget), _) => {
-                    if drone_widget.get_id() == neighbor_id {
-                        return Err("Can't create a connection to itself".to_string())
-                    }
-                    Ok(neighbor_idx)
-                },
-
-                // Web Client - check if current client has reached it max number of connections (2)
-                (WidgetType::WebClient(web_client_widget), WidgetType::Drone(_)) => {
-                    let client_id = web_client_widget.get_id();
-                    if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
-                        // Check if the current client has reached its max number of connections
-                        if self.clients[pos].connected_drone_ids.len() == 2 {
-                            Err(format!("Client {client_id}, reached its max connections"))
-                        } else {
-                            Ok(neighbor_idx)
-                        }
-                    } else { 
-                        Err("Client not found".to_string()) 
-                    }
-                },
-                
-                // Chat Clients - check if current client has reached it max number of connections (2)
-                (WidgetType::ChatClient(chat_client_widget), WidgetType::Drone(_)) => {
-                    let client_id = chat_client_widget.get_id();
-                    if let Some(pos) = self.clients.iter().position(|cl| cl.id == client_id) {
-                        // Check if the current client has reached its max number of connections
-                        if self.clients[pos].connected_drone_ids.len() == 2 {
-                            Err(format!("Client {client_id}, reached its max connections"))
-                        } else {
-                            Ok(neighbor_idx)
-                        }
-                    } else { 
-                        Err("Client not found".to_string()) 
-                    }
-                },
-                
-                // Here I include all patterns like ChatClient/ChatClient, ChatClient/WebClient, ChatClient/Server.
-                // and all patterns like WebClient/WebClient, WebClient/ChatClient, WebClient/Server.
-                (WidgetType::ChatClient(_) | WidgetType::WebClient(_), _) => Err("Client cannot be connected directly to other client nor server".to_string()),
-                
-                // Servers - can be connected to any number of drones (but min. 2)
-                (WidgetType::Server(_), WidgetType::Drone(_)) => Ok(neighbor_idx),
-                (WidgetType::Server(_), _) => Err("Server cannot be connected directly to other client nor server".to_string()),
-            }
-        } else {
-            Err("No selected node".to_string())
-        }
     }
 
     fn get_sender_channel(&self, idx: NodeIndex) -> (NodeId, Sender<Packet>) {
