@@ -67,6 +67,7 @@ pub fn run(
         ).expect("Failed to run simulation controller");
 }
 
+/// This function generate the graph from the channels and the nodes
 fn generate_graph(dh: &DChannels, wch: &WCChannels, cch: &CCChannels, sh: &SChannels, drones: &Vec<Drone>, clients: &Vec<Client>, servers: &Vec<Server>) -> Graph<WidgetType, (), Undirected> {
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
@@ -145,7 +146,6 @@ fn generate_graph(dh: &DChannels, wch: &WCChannels, cch: &CCChannels, sh: &SChan
     eg_graph
 }
 
-// #[derive(Debug)]
 struct SimulationController {
     drones_channels: DChannels,
     web_clients_channels: WCChannels,
@@ -194,6 +194,9 @@ impl SimulationController {
         }
     }
 
+    /// Helper function to get the index of a node given its id
+    /// 
+    /// The `NodeIndex` is the index used by the graph library to identify a node
     fn get_node_idx(&self, id: NodeId) -> Option<NodeIndex> {
         for (node_idx, widget) in self.graph.nodes_iter() {
             match widget.payload() {
@@ -458,6 +461,11 @@ impl SimulationController {
         }
     }
 
+    /// Function used to update the neighborhood of a node
+    /// 
+    /// The neighborhood of a node is the set of nodes that are connected to it.
+    /// This function handles the addition and removal of nodes from the neighborhood,
+    /// by using the `UpdateType` enum to distinguish between the two cases.
     fn update_neighborhood(&mut self, update_type: &UpdateType, source_id: u8, source_idx: NodeIndex, n_id: u8) {
         match update_type {
             UpdateType::Add => {
@@ -507,6 +515,11 @@ impl SimulationController {
         }
     }
 
+    /// Function to validate the input of the user when adding a neighbor to a node
+    /// 
+    /// The input should not be empty
+    /// The input should be a valid u8 number
+    /// The input should be a valid id of a node in the graph
     fn validate_add_sender_input(&self, input_neighbor_id: &str) -> Result<NodeIndex, String> {
         if input_neighbor_id.is_empty() {
             return Err("The input field cannot be empty".to_string());
@@ -525,6 +538,9 @@ impl SimulationController {
         Ok(neighbor_idx)
     }
 
+    /// Function used to verify if a client can add a new sender
+    /// 
+    /// A client can add a new sender if it has less than 2 connections
     fn can_client_add_sender(&self, client_id: NodeId) -> Result<u8, String> {
         if let Some(client_pos) = self.clients.iter().position(|c| c.id == client_id) {
             if self.clients[client_pos].connected_drone_ids.len() == 2 {
@@ -537,6 +553,13 @@ impl SimulationController {
         }
     }
 
+    /// Function to check if a sender can be added to a node
+    /// 
+    /// It checks if the sender and the neighbor can be connected
+    /// based on the type of the nodes.
+    /// Drones can be connected to drones, clients and servers.
+    /// Clients can be connected only to drones. (max. 2 connections)
+    /// Servers can be connected only to drones.
     fn can_add_sender(&self, source_idx: NodeIndex, neighbor_idx: NodeIndex) -> Result<(NodeIndex, NodeIndex), String> {
         match (self.graph.node(source_idx).unwrap().payload(), self.graph.node(neighbor_idx).unwrap().payload()) {
             (WidgetType::Drone(_), WidgetType::Drone(_)) => {
@@ -590,6 +613,7 @@ impl SimulationController {
         self.can_add_sender(source_idx, neighbor_idx)
     }
 
+    /// Helper function to get the sender channel of a node and the corresponding `NodeId`
     fn get_sender_channel(&self, idx: NodeIndex) -> (NodeId, Sender<Packet>) {
         match self.graph.node(idx).unwrap().payload() {
             WidgetType::Drone(dw) => (dw.get_id(), self.drones_channels[&dw.get_id()].2.clone()),
@@ -643,7 +667,11 @@ impl SimulationController {
         Ok(())
     }
 
-
+    /// Function to check if a node can remove a sender
+    /// 
+    /// For drones, they must have at least 1 connection, otherwise the graph becomes disconnected.
+    /// For clients, they must have at least 1 connection to a drone.
+    /// For servers, they must have at least 2 connections to drones.
     fn can_remove_sender(&self, node_idx: NodeIndex) -> Result<u8, String> {
         match self.graph.node(node_idx).unwrap().payload() {
             // For drones I should check if they have at least 1 connection, otherwise the graph becomes disconnected
@@ -804,6 +832,10 @@ impl SimulationController {
         Ok(())
     }
 
+    /// Function to crash a drone
+    /// 
+    /// When a drone crashes, it sends a crash command to the mimicked drone.
+    /// Then, it removes the drone from the graph and updates the neighbors of the drone.
     fn crash_drone(&mut self, crashing_drone: NodeIndex) {
         let drone = self.graph.node(crashing_drone).unwrap().payload();
         let neighbors = self.graph.g.neighbors(crashing_drone).collect::<Vec<NodeIndex>>();
@@ -858,6 +890,7 @@ impl SimulationController {
         self.selected_node = None;
     }
 
+    /// Function to spawn a new drone
     fn spawn_drone(&mut self) {
         let new_id = 100;
         let (sender_command, receiver_command): (Sender<DroneCommand>, Receiver<DroneCommand>) = crossbeam_channel::unbounded();
