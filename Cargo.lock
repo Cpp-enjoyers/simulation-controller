@@ -182,8 +182,9 @@ dependencies = [
 [[package]]
 name = "ap2024_unitn_cppenjoyers_drone"
 version = "0.9.0"
-source = "git+https://github.com/Cpp-enjoyers/drone.git#d328f66bd3a12257b89de7c64cd09f2a49c605c3"
+source = "git+https://github.com/Cpp-enjoyers/drone.git#93e95169f3444c079d0516c4060cb991e67801c8"
 dependencies = [
+ "common",
  "crossbeam-channel",
  "log",
  "pretty_env_logger",
@@ -614,9 +615,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.12"
+version = "1.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "755717a7de9ec452bf7f3f1a3099085deabd7f2962b861dae91ecd7a365903d2"
+checksum = "c7777341816418c02e033934a09f20dc0ccaf65a5201ef8a450ae0105a573fda"
 dependencies = [
  "jobserver",
  "libc",
@@ -688,7 +689,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/Cpp-enjoyers/common.git#b834908c79f09b81d22c31a190247c7264498cff"
+source = "git+https://github.com/Cpp-enjoyers/common.git#b89179be76427652911e11975c4caf1963cc6782"
 dependencies = [
  "bincode",
  "crossbeam-channel",

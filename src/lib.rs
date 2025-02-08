@@ -429,6 +429,7 @@ impl SimulationController {
             },
             ChatClientEvent::NewMessageFrom(_) => todo!(),
             ChatClientEvent::UnsupportedRequest => {},
+            ChatClientEvent::MessageReceived(msg) => {},
         }
     }
 
