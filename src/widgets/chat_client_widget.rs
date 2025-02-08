@@ -81,14 +81,17 @@ impl Widget for ChatClientWidget {
             }
 
             // Display the list of chat servers
-            // Clicking on a server will connect to it
-            // ui.label("Chat servers:");
-            // for id in self.servers_types.keys() {
-            //     if ui.add(Label::new(format!("Server {id}")).sense(Sense::click())).clicked() {
-            //         let cmd = ChatClientCommand::ConnectToChatServer(*id);
-            //         self.command_ch.send(cmd).expect("msg not sent");
-            //     }
-            // }
+            // Clicking on a server will open a new window with the chat
+            ui.label("Chat servers:");
+            for id in self.servers_types.keys() {
+                if ui.add(Label::new(format!("Server {id}")).sense(Sense::click())).clicked() {
+                    egui::Window::new(format!("Chat Server {id}"))
+                        .scroll(true)
+                        .show(ui.ctx(), |ui| {
+                            ui.label("fake chat");
+                        });
+                }
+            }
 
             ui.separator();
         }).response
