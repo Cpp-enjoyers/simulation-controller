@@ -929,7 +929,7 @@ impl SimulationController {
         }
     }
 
-    fn render(&mut self, ctx: &egui::Context) {
+    #[allow(clippy::too_many_lines)] fn render(&mut self, ctx: &egui::Context) {
         SidePanel::right("Panel").show(ctx, |ui| {
             if let Some(idx) = self.selected_node {
                 let node = self.graph.node_mut(idx).unwrap().payload_mut().clone();
