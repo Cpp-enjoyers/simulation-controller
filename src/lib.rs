@@ -22,10 +22,10 @@ use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, s
 
 #[derive(Clone, Debug)]
 enum Events {
-    DroneEvent(DroneEvent),
-    WebClientEvent(WebClientEvent),
-    ChatClientEvent(ChatClientEvent),
-    ServerEvent(ServerEvent),
+    Drone(DroneEvent),
+    WebClient(WebClientEvent),
+    ChatClient(ChatClientEvent),
+    Server(ServerEvent),
 }
 
 enum UpdateType {
@@ -256,34 +256,34 @@ impl SimulationController {
         let mut event_queue: Vec<(NodeId, Events)> = Vec::new();
         for (drone_id, drone_ch) in &self.drones_channels {
             if let Ok(event) = drone_ch.1.try_recv() {
-                event_queue.push((*drone_id, Events::DroneEvent(event)));
+                event_queue.push((*drone_id, Events::Drone(event)));
             }
         }
 
         for (client_id, client_ch) in &self.web_clients_channels {
             if let Ok(event) = client_ch.1.try_recv() {
-                event_queue.push((*client_id, Events::WebClientEvent(event)));
+                event_queue.push((*client_id, Events::WebClient(event)));
             }
         }
 
         for (client_id, client_ch) in &self.chat_clients_channels {
             if let Ok(event) = client_ch.1.try_recv() {
-                event_queue.push((*client_id, Events::ChatClientEvent(event)));
+                event_queue.push((*client_id, Events::ChatClient(event)));
             }
         }
 
         for (server_id, server_ch) in &self.servers_channels {
             if let Ok(event) = server_ch.1.try_recv() {
-                event_queue.push((*server_id, Events::ServerEvent(event)));
+                event_queue.push((*server_id, Events::Server(event)));
             }
         }
 
         for (id, event) in event_queue {
             match event {
-                Events::DroneEvent(event) => self.handle_drone_event(id, event),
-                Events::WebClientEvent(event) => self.handle_web_client_event(id, event),
-                Events::ChatClientEvent(event) => self.handle_chat_client_event(id, event),
-                Events::ServerEvent(event) => self.handle_server_event(id, event),
+                Events::Drone(event) => self.handle_drone_event(id, event),
+                Events::WebClient(event) => self.handle_web_client_event(id, event),
+                Events::ChatClient(event) => self.handle_chat_client_event(id, event),
+                Events::Server(event) => self.handle_server_event(id, event),
             }
         }
 
