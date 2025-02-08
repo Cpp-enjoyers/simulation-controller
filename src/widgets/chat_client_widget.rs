@@ -49,6 +49,7 @@ impl ChatClientWidget {
     /// The server type is associated with the `server_id`
     /// The response is received from the mimicked chat client through the `ChatClientEvent::ServersTypes` event
     pub fn add_server_type(&mut self, response: &HashMap<NodeId, ServerType>) {
+        println!("Chat client {} received server types: {:?}", self.id, response);
         for (k, v) in response {
             if *v == ServerType::ChatServer {
                 self.servers_types.insert(*k, *v);
