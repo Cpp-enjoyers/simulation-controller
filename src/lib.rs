@@ -415,6 +415,7 @@ impl SimulationController {
                 }
             },
             ChatClientEvent::ServersTypes(types) => {
+                println!("Received server types: {:?}", types);
                 let client_idx = self.get_node_idx(chat_client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
 
@@ -911,7 +912,6 @@ impl SimulationController {
         self.drones.push(Drone { id: new_id, connected_node_ids: vec![], pdr });
         let drone_idx = self.graph.add_node(WidgetType::Drone(DroneWidget::new(new_id, sender_command.clone())));
         self.graph.node_mut(drone_idx).unwrap().set_label(format!("Drone {new_id}"));
-        // consider changing the label of the drone
         std::thread::spawn(move || {
             new_drone.run();
         });
