@@ -111,19 +111,21 @@ impl Widget for ChatClientWidget {
                     .resizable(false)
                     .scroll(true)
                     .show(ui.ctx(), |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.label("Chat messages:");
-                            for (is_sender, msg) in self.chat_messages.borrow().iter() {
-                                if *is_sender {
-                                    ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-                                        ui.label(format!("Me: {}", msg));
-                                    });
-                                } else {
-                                    ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
-                                        ui.label(format!("Other: {}", msg));
-                                    });
+                        ui.vertical(|ui| {
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                ui.label("Chat messages:");
+                                for (is_sender, msg) in self.chat_messages.borrow().iter() {
+                                    if *is_sender {
+                                        ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                                            ui.label(format!("Me: {}", msg));
+                                        });
+                                    } else {
+                                        ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
+                                            ui.label(format!("Other: {}", msg));
+                                        });
+                                    }
                                 }
-                            }
+                            });
                         });
                         ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
                             ui.add_space(10.0);
