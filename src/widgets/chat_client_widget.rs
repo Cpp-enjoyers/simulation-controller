@@ -16,10 +16,13 @@ pub struct ChatClientWidget {
 
 impl ChatClientWidget {
     #[must_use] pub fn new(id: NodeId, command_ch: Sender<ChatClientCommand>) -> Self {
+        let mut temp_map = HashMap::new();
+        temp_map.insert(29, ServerType::ChatServer);
         Self { 
             id,
             command_ch,
-            servers_types: HashMap::default(),
+            // servers_types: HashMap::default(),
+            servers_types: temp_map,
             list_connected_clients: HashMap::default(),
         }
     }
