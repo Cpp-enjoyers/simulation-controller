@@ -93,13 +93,14 @@ impl Widget for ChatClientWidget {
                     *self.open_chat.borrow_mut() = true;
                 }
 
-                if *self.open_chat.borrow() {
+                // if *self.open_chat.borrow() {
                     egui::Window::new(format!("Chat Server {id}"))
+                        .open(&mut *self.open_chat.borrow_mut())
                         .scroll(true)
                         .show(ui.ctx(), |ui| {
                             ui.label("fake chat");
                         });
-                }
+                // }
             }
 
             ui.separator();
