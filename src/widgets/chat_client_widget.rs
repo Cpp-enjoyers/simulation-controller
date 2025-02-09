@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use common::slc_commands::{ChatClientCommand, ServerType};
 use crossbeam_channel::Sender;
@@ -12,7 +12,7 @@ pub struct ChatClientWidget {
     command_ch: Sender<ChatClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
     list_connected_clients: HashMap<NodeId, Vec<u8>>,
-    open_chat: bool,
+    open_chat: Rc<RefCell<bool>>,
 }
 
 impl ChatClientWidget {
@@ -25,7 +25,7 @@ impl ChatClientWidget {
             // servers_types: HashMap::default(),
             servers_types: temp_map,
             list_connected_clients: HashMap::default(),
-            open_chat: false,
+            open_chat: Rc::new(RefCell::new(false)),
         }
     }
 
@@ -90,10 +90,10 @@ impl Widget for ChatClientWidget {
             ui.label("Chat servers:");
             for id in self.servers_types.keys() {
                 if ui.add(Label::new(format!("Server {id}")).sense(Sense::click())).clicked() {
-                    self.open_chat = true;
+                    *self.open_chat.borrow_mut() = true;
                 }
 
-                if self.open_chat {
+                if *self.open_chat.borrow() {
                     egui::Window::new(format!("Chat Server {id}"))
                         .scroll(true)
                         .show(ui.ctx(), |ui| {
