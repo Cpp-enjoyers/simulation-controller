@@ -139,6 +139,8 @@ impl Widget for ChatClientWidget {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
                                 if ui.button("Send").clicked() && !self.chat_input.borrow().is_empty() {
                                     self.chat_messages.borrow_mut().push((true, self.chat_input.borrow().clone()));
+                                    let cmd = ChatClientCommand::SendMessage(self.chat_input.borrow().clone());
+                                    self.command_ch.send(cmd).expect("msg not sent");
                                     self.chat_input.borrow_mut().clear();
                                 }
                             });
