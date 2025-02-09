@@ -114,7 +114,10 @@ impl Widget for ChatClientWidget {
                         // println!("window: {}", ui.available_height());
                         ui.vertical(|ui| {
                             // println!("vertical: {}", ui.available_height());
-                            egui::ScrollArea::vertical().max_height(ui.available_height() - 45.0).show(ui, |ui| {
+                            egui::ScrollArea::vertical()
+                                .max_height(ui.available_height() - 45.0) // this is clearly a bad idea but oh
+                                .stick_to_bottom(true)
+                                .show(ui, |ui| {
                                 ui.label("Chat messages:");
                                 for (is_sender, msg) in self.chat_messages.borrow().iter() {
                                     if *is_sender {
