@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use common::slc_commands::{ChatClientCommand, ServerType};
 use crossbeam_channel::Sender;
-use egui::{Label, Layout, Sense, Widget};
+use egui::{Align, Label, Layout, Sense, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
 
@@ -14,6 +14,7 @@ pub struct ChatClientWidget {
     list_connected_clients: HashMap<NodeId, Vec<u8>>,
     open_chat: Rc<RefCell<bool>>,
     chat_input: Rc<RefCell<String>>,
+    chat_messages: Rc<RefCell<Vec<(Option<bool>, String)>>>,
 }
 
 impl ChatClientWidget {
@@ -28,6 +29,7 @@ impl ChatClientWidget {
             list_connected_clients: HashMap::default(),
             open_chat: Rc::new(RefCell::new(false)),
             chat_input: Rc::new(RefCell::new(String::new())),
+            chat_messages: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -95,23 +97,37 @@ impl Widget for ChatClientWidget {
                     *self.open_chat.borrow_mut() = true;
                 }
 
-                // if *self.open_chat.borrow() {
-                    egui::Window::new(format!("Chat Server {id}"))
-                        .open(&mut *self.open_chat.borrow_mut())
-                        .scroll(true)
-                        .show(ui.ctx(), |ui| {
-                            ui.label("fake chat");
-                            ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
-                                ui.add_space(15.0);
-                                ui.horizontal(|ui| {
-                                    ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
-                                    if ui.button("Send").clicked() {
-                                        println!("Chat input: {}", *self.chat_input.borrow());
-                                    }
-                                });
+                egui::Window::new(format!("Chat Server {id}"))
+                    .open(&mut *self.open_chat.borrow_mut())
+                    .resizable(false)
+                    .scroll(true)
+                    .show(ui.ctx(), |ui| {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            ui.label("Chat messages:");
+                            for (is_sender, msg) in self.chat_messages.borrow().iter() {
+                                if is_sender.is_some() {
+                                    ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                                        ui.label(format!("Me: {}", msg));
+                                    });
+                                } else {
+                                    ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
+                                        ui.label(format!("Other: {}", msg));
+                                    });
+                                }
+                            }
+                        });
+                        ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                            ui.add_space(15.0);
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
+                                if ui.button("Send").clicked() {
+                                    println!("Chat input: {}", *self.chat_input.borrow());
+                                    self.chat_messages.borrow_mut().push((Some(true), self.chat_input.borrow().clone()));
+                                    self.chat_input.borrow_mut().clear();
+                                }
                             });
                         });
-                // }
+                    });
             }
 
             ui.separator();
