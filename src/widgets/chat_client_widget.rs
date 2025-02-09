@@ -107,7 +107,7 @@ impl Widget for ChatClientWidget {
                 }
 
                 egui::Window::new(format!("Chat Server {id}"))
-                    .open(&mut *self.open_chat.borrow_mut())
+                    .open(&mut self.open_chat.borrow_mut())
                     .resizable(false)
                     .scroll(true)
                     .show(ui.ctx(), |ui| {
@@ -132,7 +132,7 @@ impl Widget for ChatClientWidget {
                                 }
                             });
                         });
-                        let input= ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                        ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());

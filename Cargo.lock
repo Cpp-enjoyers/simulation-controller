@@ -689,7 +689,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/Cpp-enjoyers/common.git#8ea1de22be4b1e0b3f98c7533dec17e2a10013d8"
+source = "git+https://github.com/Cpp-enjoyers/common.git#a1714e8e90d7520de6a7fbc22b9c4eb682dfd9fe"
 dependencies = [
  "bincode",
  "crossbeam-channel",
