@@ -112,7 +112,7 @@ impl Widget for ChatClientWidget {
                     .scroll(true)
                     .show(ui.ctx(), |ui| {
                         ui.vertical(|ui| {
-                            egui::ScrollArea::vertical().show(ui, |ui| {
+                            egui::ScrollArea::vertical().max_height(ui.available_height()).show(ui, |ui| {
                                 ui.label("Chat messages:");
                                 for (is_sender, msg) in self.chat_messages.borrow().iter() {
                                     if *is_sender {
