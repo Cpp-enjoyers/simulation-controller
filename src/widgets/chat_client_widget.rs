@@ -19,13 +19,13 @@ pub struct ChatClientWidget {
 
 impl ChatClientWidget {
     #[must_use] pub fn new(id: NodeId, command_ch: Sender<ChatClientCommand>) -> Self {
-        let mut temp_map = HashMap::new();
-        temp_map.insert(29, ServerType::ChatServer);
+        // let mut temp_map = HashMap::new();
+        // temp_map.insert(29, ServerType::ChatServer);
         Self { 
             id,
             command_ch,
-            // servers_types: HashMap::default(),
-            servers_types: temp_map,
+            servers_types: HashMap::default(),
+            // servers_types: temp_map,
             list_connected_clients: HashMap::default(),
             open_chat: Rc::new(RefCell::new(false)),
             chat_input: Rc::new(RefCell::new(String::new())),
@@ -115,9 +115,7 @@ impl Widget for ChatClientWidget {
                     .resizable(false)
                     .scroll(true)
                     .show(ui.ctx(), |ui| {
-                        // println!("window: {}", ui.available_height());
                         ui.vertical(|ui| {
-                            // println!("vertical: {}", ui.available_height());
                             egui::ScrollArea::vertical()
                                 .max_height(ui.available_height() - 45.0) // this is clearly a bad idea but oh
                                 .stick_to_bottom(true)
@@ -143,11 +141,9 @@ impl Widget for ChatClientWidget {
                                 if ui.button("Send").clicked() && !self.chat_input.borrow().is_empty() {
                                     self.chat_messages.borrow_mut().push((true, self.chat_input.borrow().clone()));
                                     self.chat_input.borrow_mut().clear();
-                                    self.chat_messages.borrow_mut().push((false, "Hello".to_string()));
                                 }
                             });
                         });
-                        // println!("input: {}", input.response.rect.height());
                     });
             }
             ui.separator();
