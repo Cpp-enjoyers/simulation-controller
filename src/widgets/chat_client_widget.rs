@@ -123,7 +123,7 @@ impl Widget for ChatClientWidget {
                                 for (is_sender, msg) in self.chat_messages.borrow().iter() {
                                     if *is_sender {
                                         ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-                                            ui.add(Label::new(format!("Me: {}", msg)).wrap());
+                                            ui.add(Label::new(format!("Me: {msg}")).wrap());
                                         });
                                     } else {
                                         ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
