@@ -66,6 +66,10 @@ impl ChatClientWidget {
         }
     }
 
+    pub fn update_chat(&mut self, msg: String) {
+        self.chat_messages.borrow_mut().push((false, msg));
+    }
+
     /// Function to update the list of connected clients to a specific chat server
     /// The list of connected clients is associated with the `server_id`
     pub fn update_connected_client(&mut self, server_id: NodeId, connected_clients: Vec<u8>) {
