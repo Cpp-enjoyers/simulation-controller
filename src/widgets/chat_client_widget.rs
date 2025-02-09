@@ -111,10 +111,10 @@ impl Widget for ChatClientWidget {
                     .resizable(false)
                     .scroll(true)
                     .show(ui.ctx(), |ui| {
-                        println!("window: {}", ui.available_height());
+                        // println!("window: {}", ui.available_height());
                         ui.vertical(|ui| {
-                            println!("vertical: {}", ui.available_height());
-                            egui::ScrollArea::vertical().max_height(ui.available_height()).show(ui, |ui| {
+                            // println!("vertical: {}", ui.available_height());
+                            egui::ScrollArea::vertical().max_height(ui.available_height() - 35.0).show(ui, |ui| {
                                 ui.label("Chat messages:");
                                 for (is_sender, msg) in self.chat_messages.borrow().iter() {
                                     if *is_sender {
@@ -140,7 +140,7 @@ impl Widget for ChatClientWidget {
                                 }
                             });
                         });
-                        println!("input: {}", input.response.rect.height());
+                        // println!("input: {}", input.response.rect.height());
                     });
             }
             ui.separator();
