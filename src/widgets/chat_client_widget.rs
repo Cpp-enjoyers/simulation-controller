@@ -13,6 +13,7 @@ pub struct ChatClientWidget {
     servers_types: HashMap<NodeId, ServerType>,
     list_connected_clients: HashMap<NodeId, Vec<u8>>,
     open_chat: Rc<RefCell<bool>>,
+    chat_input: Rc<RefCell<String>>,
 }
 
 impl ChatClientWidget {
@@ -26,6 +27,7 @@ impl ChatClientWidget {
             servers_types: temp_map,
             list_connected_clients: HashMap::default(),
             open_chat: Rc::new(RefCell::new(false)),
+            chat_input: Rc::new(RefCell::new(String::new())),
         }
     }
 
@@ -99,6 +101,12 @@ impl Widget for ChatClientWidget {
                         .scroll(true)
                         .show(ui.ctx(), |ui| {
                             ui.label("fake chat");
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
+                                if ui.button("Send").clicked() {
+                                    println!("Chat input: {}", *self.chat_input.borrow());
+                                }
+                            });
                         });
                 // }
             }
