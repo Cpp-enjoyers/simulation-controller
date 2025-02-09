@@ -117,14 +117,12 @@ impl Widget for ChatClientWidget {
                             }
                         });
                         ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
-                            ui.add_space(15.0);
+                            ui.add_space(10.0);
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
-                                if ui.button("Send").clicked() {
-                                    println!("Chat input: {}", *self.chat_input.borrow());
+                                if ui.button("Send").clicked() && !self.chat_input.borrow().is_empty() {
                                     self.chat_messages.borrow_mut().push((true, self.chat_input.borrow().clone()));
                                     self.chat_input.borrow_mut().clear();
-                                    self.chat_messages.borrow_mut().push((false, "Hello".to_string()));
                                 }
                             });
                         });
