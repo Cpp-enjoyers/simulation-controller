@@ -140,7 +140,7 @@ impl Widget for ChatClientWidget {
                                 }
                             });
                         });
-                        println!("input: {}", input.response.rect);
+                        println!("input: {}", input.response.rect.height());
                     });
             }
             ui.separator();
