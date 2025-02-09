@@ -12,6 +12,7 @@ pub struct ChatClientWidget {
     command_ch: Sender<ChatClientCommand>,
     servers_types: HashMap<NodeId, ServerType>,
     list_connected_clients: HashMap<NodeId, Vec<u8>>,
+    open_chat: bool,
 }
 
 impl ChatClientWidget {
@@ -24,6 +25,7 @@ impl ChatClientWidget {
             // servers_types: HashMap::default(),
             servers_types: temp_map,
             list_connected_clients: HashMap::default(),
+            open_chat: false,
         }
     }
 
@@ -72,7 +74,7 @@ impl ChatClientWidget {
 }
 
 impl Widget for ChatClientWidget {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Chat Client {}", self.id));
 
@@ -88,6 +90,10 @@ impl Widget for ChatClientWidget {
             ui.label("Chat servers:");
             for id in self.servers_types.keys() {
                 if ui.add(Label::new(format!("Server {id}")).sense(Sense::click())).clicked() {
+                    self.open_chat = true;
+                }
+
+                if self.open_chat {
                     egui::Window::new(format!("Chat Server {id}"))
                         .scroll(true)
                         .show(ui.ctx(), |ui| {
