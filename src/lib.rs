@@ -11,6 +11,7 @@ use egui_graphs::{
 use petgraph::{
     graph::EdgeIndex, stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
+use utils::EventQueue;
 use std::{collections::{HashMap, HashSet, VecDeque}, fs::File, io::Write, path::Path};
 use wg_2024::{
     config::{Client, Drone, Server}, 
@@ -19,6 +20,7 @@ use wg_2024::{
 };
 pub mod widgets;
 use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, server_widget::ServerWidget, web_client_widget::WebClientWidget, WidgetType};
+pub mod utils;
 
 #[derive(Clone, Debug)]
 enum Events {
@@ -161,7 +163,7 @@ struct SimulationController {
     add_neighbor_error: String,
     rm_neighbor_error: String,
     drone_crash_error: String,
-    events: Vec<RichText>,
+    events: EventQueue<RichText>,
 }
 
 impl SimulationController {
@@ -190,7 +192,7 @@ impl SimulationController {
             add_neighbor_error: String::default(),
             rm_neighbor_error: String::default(),
             drone_crash_error: String::default(),
-            events: Vec::new(),
+            events: EventQueue::new(100),
         }
     }
 
@@ -1056,8 +1058,9 @@ impl SimulationController {
                     self.events.len(), 
                     |ui, row_range| {
                         ui.add(Separator::default().vertical());
+                        let events = self.events.get();
                         for row in row_range {
-                            ui.label(self.events[row].clone());
+                            ui.label(events[row].clone());
                         }
                 });
             });
