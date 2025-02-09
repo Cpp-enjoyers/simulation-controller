@@ -1057,8 +1057,9 @@ impl SimulationController {
                     row_height, 
                     self.events.len(), 
                     |ui, row_range| {
-                        ui.add(Separator::default().vertical());
+                        // ui.add(Separator::default().vertical());
                         let events = self.events.get();
+                        println!("range: {:?}, events_len: {}", row_range, events.len());
                         for row in row_range {
                             ui.label(events[row].clone());
                         }
