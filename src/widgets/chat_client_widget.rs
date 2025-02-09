@@ -129,7 +129,7 @@ impl Widget for ChatClientWidget {
                                 }
                             });
                         });
-                        ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                        let input= ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
@@ -140,6 +140,7 @@ impl Widget for ChatClientWidget {
                                 }
                             });
                         });
+                        println!("input: {}", input.response.rect);
                     });
             }
             ui.separator();
