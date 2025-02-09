@@ -3,7 +3,7 @@
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
-use egui::{Button, CentralPanel, Color32, Layout, RichText, ScrollArea, Separator, SidePanel, TextStyle, TopBottomPanel};
+use egui::{Button, CentralPanel, Color32, Layout, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
