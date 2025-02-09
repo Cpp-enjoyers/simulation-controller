@@ -417,7 +417,6 @@ impl SimulationController {
                 }
             },
             ChatClientEvent::ServersTypes(types) => {
-                println!("Received server types: {:?}", types);
                 let client_idx = self.get_node_idx(chat_client_id).unwrap();
                 let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
 
