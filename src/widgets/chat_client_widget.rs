@@ -14,7 +14,7 @@ pub struct ChatClientWidget {
     list_connected_clients: HashMap<NodeId, Vec<u8>>,
     open_chat: Rc<RefCell<bool>>,
     chat_input: Rc<RefCell<String>>,
-    chat_messages: Rc<RefCell<Vec<(Option<bool>, String)>>>,
+    chat_messages: Rc<RefCell<Vec<(bool, String)>>>,
 }
 
 impl ChatClientWidget {
@@ -105,7 +105,7 @@ impl Widget for ChatClientWidget {
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.label("Chat messages:");
                             for (is_sender, msg) in self.chat_messages.borrow().iter() {
-                                if is_sender.is_some() {
+                                if *is_sender {
                                     ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
                                         ui.label(format!("Me: {}", msg));
                                     });
@@ -122,9 +122,9 @@ impl Widget for ChatClientWidget {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
                                 if ui.button("Send").clicked() {
                                     println!("Chat input: {}", *self.chat_input.borrow());
-                                    self.chat_messages.borrow_mut().push((Some(true), self.chat_input.borrow().clone()));
+                                    self.chat_messages.borrow_mut().push((true, self.chat_input.borrow().clone()));
                                     self.chat_input.borrow_mut().clear();
-                                    self.chat_messages.borrow_mut().push((Some(false), "Hello".to_string()));
+                                    self.chat_messages.borrow_mut().push((false, "Hello".to_string()));
                                 }
                             });
                         });
