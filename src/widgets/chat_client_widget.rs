@@ -127,7 +127,8 @@ impl Widget for ChatClientWidget {
                                         });
                                     } else {
                                         ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
-                                            ui.label(format!("Other: {}", msg));
+                                            // ui.label(format!("Other: {}", msg));
+                                            ui.add(Label::new(msg).wrap());
                                         });
                                     }
                                 }
