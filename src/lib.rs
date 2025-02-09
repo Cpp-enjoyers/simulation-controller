@@ -424,15 +424,6 @@ impl SimulationController {
                     client_widget.add_server_type(&types);
                 }
             },
-            // ChatClientEvent::ClientsConnectedToChatServer(server_id, connected_clients) => {
-            //     let client_idx = self.get_node_idx(chat_client_id).unwrap();
-            //     let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
-
-            //     if let WidgetType::ChatClient(client_widget) = client {
-            //         client_widget.update_connected_client(server_id, connected_clients);
-            //     }
-            // },
-            // ChatClientEvent::NewMessageFrom(_) => todo!(),
             ChatClientEvent::UnsupportedRequest => {},
             ChatClientEvent::MessageReceived(msg) => {
                 let client_idx = self.get_node_idx(chat_client_id).unwrap();
