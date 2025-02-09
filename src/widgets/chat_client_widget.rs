@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use common::slc_commands::{ChatClientCommand, ServerType};
 use crossbeam_channel::Sender;
-use egui::{Label, Sense, Widget};
+use egui::{Label, Layout, Sense, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
 
@@ -101,11 +101,14 @@ impl Widget for ChatClientWidget {
                         .scroll(true)
                         .show(ui.ctx(), |ui| {
                             ui.label("fake chat");
-                            ui.horizontal(|ui| {
-                                ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
-                                if ui.button("Send").clicked() {
-                                    println!("Chat input: {}", *self.chat_input.borrow());
-                                }
+                            ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                                ui.add_space(15.0);
+                                ui.horizontal(|ui| {
+                                    ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
+                                    if ui.button("Send").clicked() {
+                                        println!("Chat input: {}", *self.chat_input.borrow());
+                                    }
+                                });
                             });
                         });
                 // }
