@@ -124,6 +124,7 @@ impl Widget for ChatClientWidget {
                                     println!("Chat input: {}", *self.chat_input.borrow());
                                     self.chat_messages.borrow_mut().push((Some(true), self.chat_input.borrow().clone()));
                                     self.chat_input.borrow_mut().clear();
+                                    self.chat_messages.borrow_mut().push((Some(false), "Hello".to_string()));
                                 }
                             });
                         });
