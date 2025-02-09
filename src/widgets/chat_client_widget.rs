@@ -77,8 +77,17 @@ impl ChatClientWidget {
     }
 }
 
+/// Implementation of the `egui::Widget` trait for the `ChatClientWidget`
+/// 
+/// This allows the `ChatClientWidget` to be rendered as an egui widget
+/// 
+/// # Example
+/// ```no_run
+/// use egui::Ui;
+/// ui.add(ChatClientWidget::new(1, command_ch));
+/// ```
 impl Widget for ChatClientWidget {
-    fn ui(mut self, ui: &mut egui::Ui) -> egui::Response {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.vertical(|ui| {
             ui.label(format!("Chat Client {}", self.id));
 
@@ -128,7 +137,6 @@ impl Widget for ChatClientWidget {
                         });
                     });
             }
-
             ui.separator();
         }).response
     }
