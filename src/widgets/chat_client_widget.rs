@@ -115,11 +115,11 @@ impl Widget for ChatClientWidget {
                             ui.label("Chat messages:");
                             for (is_sender, msg) in self.chat_messages.borrow().iter() {
                                 if *is_sender {
-                                    ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                                    ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
                                         ui.label(format!("Me: {}", msg));
                                     });
                                 } else {
-                                    ui.with_layout(Layout::left_to_right(Align::BOTTOM), |ui|{
+                                    ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
                                         ui.label(format!("Other: {}", msg));
                                     });
                                 }
