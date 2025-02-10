@@ -147,11 +147,7 @@ fn generate_graph(
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
-    let coord: [(f64, f64); 10] = [(1.0, 0.0), (0.8090169943749475, 0.5877852522924731), (0.30901699437494745, 0.9510565162951535), 
-    (-0.30901699437494734, 0.9510565162951536), (-0.8090169943749473, 0.5877852522924732), 
-    (-1.0, 1.2246467991473532e-16), (-0.8090169943749476, -0.587785252292473), 
-    (-0.30901699437494756, -0.9510565162951535), (0.30901699437494723, -0.9510565162951536), 
-    (0.8090169943749473, -0.5877852522924734)];
+    
     
     // Create drone widgets
     for (id, channels) in dh {
@@ -228,10 +224,6 @@ fn generate_graph(
     // Then iterate over the nodes again to set the labels
     for (idx, label) in &temp {
         eg_graph.node_mut(*idx).unwrap().set_label(label.clone());
-    }
-
-    for ((idx, _), (x, y)) in temp.iter().zip(coord.iter()) {
-        eg_graph.node_mut(*idx).unwrap().set_location(Pos2 { x: *x as f32, y: *y as f32 });
     }
 
     eg_graph
@@ -1356,6 +1348,21 @@ impl SimulationController {
                 });
             });
         CentralPanel::default().show(ctx, |ui| {
+            let coord: [(f64, f64); 10] = [(1.0, 0.0), (0.8090169943749475, 0.5877852522924731), (0.30901699437494745, 0.9510565162951535), 
+    (-0.30901699437494734, 0.9510565162951536), (-0.8090169943749473, 0.5877852522924732), 
+    (-1.0, 1.2246467991473532e-16), (-0.8090169943749476, -0.587785252292473), 
+    (-0.30901699437494756, -0.9510565162951535), (0.30901699437494723, -0.9510565162951536), 
+    (0.8090169943749473, -0.5877852522924734)];
+            let half_width = ui.available_width() / 2.0;
+            let half_height = ui.available_height() / 2.0;
+            let idxs = self.graph.nodes_iter().map(|(idx, _)| idx).collect::<Vec<NodeIndex>>();
+
+            for (idx, (x,y)) in idxs.iter().zip(coord.iter()) {
+                self.graph.node_mut(*idx).unwrap().set_location(
+                    Pos2 { x: half_height + half_width + *x as f32, y: half_height + half_height + *y as f32 }
+                );
+            }
+
             let graph_widget: &mut GraphView<
                 '_,
                 WidgetType,
