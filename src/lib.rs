@@ -9,8 +9,7 @@ use crossbeam_channel::{Receiver, Sender};
 use drone_bettercalldrone::BetterCallDrone;
 use eframe::egui;
 use egui::{
-    Button, CentralPanel, Color32, Layout, RichText, ScrollArea, SidePanel, TextStyle,
-    TopBottomPanel,
+    Button, CentralPanel, Color32, Layout, Pos2, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel
 };
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
@@ -148,6 +147,12 @@ fn generate_graph(
     let mut g = StableUnGraph::default();
     let mut h: HashMap<u8, NodeIndex> = HashMap::new();
     let mut edges: HashSet<(u8, u8)> = HashSet::new();
+    let coord: [(f64, f64); 10] = [(1.0, 0.0), (0.8090169943749475, 0.5877852522924731), (0.30901699437494745, 0.9510565162951535), 
+    (-0.30901699437494734, 0.9510565162951536), (-0.8090169943749473, 0.5877852522924732), 
+    (-1.0, 1.2246467991473532e-16), (-0.8090169943749476, -0.587785252292473), 
+    (-0.30901699437494756, -0.9510565162951535), (0.30901699437494723, -0.9510565162951536), 
+    (0.8090169943749473, -0.5877852522924734)];
+    
     // Create drone widgets
     for (id, channels) in dh {
         let idx = g.add_node(WidgetType::Drone(DroneWidget::new(*id, channels.0.clone())));
@@ -221,8 +226,12 @@ fn generate_graph(
         })
         .collect();
     // Then iterate over the nodes again to set the labels
-    for (idx, label) in temp {
-        eg_graph.node_mut(idx).unwrap().set_label(label);
+    for (idx, label) in &temp {
+        eg_graph.node_mut(*idx).unwrap().set_label(label.clone());
+    }
+
+    for ((idx, _), (x, y)) in temp.iter().zip(coord.iter()) {
+        eg_graph.node_mut(*idx).unwrap().set_location(Pos2 { x: *x as f32, y: *y as f32 });
     }
 
     eg_graph
