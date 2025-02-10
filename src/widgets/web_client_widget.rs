@@ -166,6 +166,7 @@ impl Widget for WebClientWidget {
                     }
                     Err(error) => *self.id_input_error.borrow_mut() = error,
                 }
+                self.id_input.borrow_mut().clear();
             }
 
             if !self.id_input_error.borrow().is_empty() {
