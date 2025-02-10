@@ -34,3 +34,25 @@ impl<T> EventQueue<T> {
         self.queue.len()
     }
 }
+
+#[macro_export]
+macro_rules! create_boxed_drone {
+    ($type:ty) => {
+        |id: NodeId,
+         controller_send: Sender<DroneEvent>,
+         controller_recv: Receiver<DroneCommand>,
+         packet_recv: Receiver<Packet>,
+         packet_send: HashMap<NodeId, Sender<Packet>>,
+         pdr: f32|
+         -> Box<dyn DroneTrait> {
+            Box::new(<$type>::new(
+                id,
+                controller_send,
+                controller_recv,
+                packet_recv,
+                packet_send,
+                pdr,
+            ))
+        }
+    };
+}

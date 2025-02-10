@@ -1,16 +1,26 @@
 #![warn(clippy::pedantic)]
 
+use ap2024_rustinpeace_nosounddrone::NoSoundDroneRIP;
 use common::slc_commands::{ChatClientCommand, ChatClientEvent, ServerCommand, ServerEvent, WebClientCommand, WebClientEvent};
 use crossbeam_channel::{Receiver, Sender};
+use drone_bettercalldrone::BetterCallDrone;
 use eframe::egui;
 use egui::{Button, CentralPanel, Color32, Layout, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel};
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
     SettingsStyle,
 };
+use getdroned::GetDroned;
 use petgraph::{
     graph::EdgeIndex, stable_graph::{NodeIndex, StableUnGraph}, Undirected
 };
+use rand::Rng;
+use rolling_drone::RollingDrone;
+use rust_do_it::RustDoIt;
+use rust_roveri::RustRoveri;
+use rustafarian_drone::RustafarianDrone;
+use rusteze_drone::RustezeDrone;
+use rusty_drones::RustyDrone;
 use utils::EventQueue;
 use std::{collections::{HashMap, HashSet, VecDeque}, fs::File, io::Write, path::Path};
 use wg_2024::{
@@ -21,6 +31,8 @@ use wg_2024::{
 pub mod widgets;
 use widgets::{chat_client_widget::ChatClientWidget, drone_widget::DroneWidget, server_widget::ServerWidget, web_client_widget::WebClientWidget, WidgetType};
 pub mod utils;
+
+use dr_ones::Drone as DrDrone;
 
 #[derive(Clone, Debug)]
 enum Events {
@@ -147,6 +159,20 @@ fn generate_graph(dh: &DChannels, wch: &WCChannels, cch: &CCChannels, sh: &SChan
 
     eg_graph
 }
+
+type DroneFactory = fn(u8, Sender<DroneEvent>, Receiver<DroneCommand>, Receiver<Packet>, HashMap<u8, Sender<Packet>>, f32) -> Box<dyn DroneTrait>;
+const DRONE_FACTORY: [DroneFactory; 10] = [
+    create_boxed_drone!(DrDrone),
+    create_boxed_drone!(RustDoIt),
+    create_boxed_drone!(RustRoveri),
+    create_boxed_drone!(RollingDrone),
+    create_boxed_drone!(RustafarianDrone),
+    create_boxed_drone!(RustezeDrone),
+    create_boxed_drone!(RustyDrone),
+    create_boxed_drone!(GetDroned),
+    create_boxed_drone!(NoSoundDroneRIP),
+    create_boxed_drone!(BetterCallDrone),
+];
 
 struct SimulationController {
     drones_channels: DChannels,
@@ -892,13 +918,15 @@ impl SimulationController {
 
     /// Function to spawn a new drone
     fn spawn_drone(&mut self) {
+        let rand_drone_id = rand::rng().random_range(0..10);
+        let drone_factory = DRONE_FACTORY[rand_drone_id];
         let new_id = 100;
         let (sender_command, receiver_command): (Sender<DroneCommand>, Receiver<DroneCommand>) = crossbeam_channel::unbounded();
         let (send_event, receive_event): (Sender<DroneEvent>, Receiver<DroneEvent>) = crossbeam_channel::unbounded();
         let (packet_send, packet_recv): (Sender<Packet>, Receiver<Packet>) = crossbeam_channel::unbounded();
         let nbrs = HashMap::new();
         let pdr = 0.0;
-        let mut new_drone = ap2024_unitn_cppenjoyers_drone::CppEnjoyersDrone::new(
+        let mut new_drone = drone_factory(
             new_id, 
             send_event,
             receiver_command,
