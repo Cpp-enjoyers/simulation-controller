@@ -744,7 +744,12 @@ impl SimulationController {
         input_neighbor_id: &str,
     ) -> Result<(NodeIndex, NodeIndex), String> {
         let neighbor_idx = self.validate_add_sender_input(input_neighbor_id)?;
-
+        
+        // check if the two nodes are already connected
+        if self.graph.edges_connecting(source_idx, neighbor_idx).count() > 0 {
+            return Err("Nodes are already connected".to_string());
+        }
+        
         self.can_add_sender(source_idx, neighbor_idx)
     }
 
