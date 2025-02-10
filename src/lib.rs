@@ -9,7 +9,7 @@ use crossbeam_channel::{Receiver, Sender};
 use drone_bettercalldrone::BetterCallDrone;
 use eframe::egui;
 use egui::{
-    Button, CentralPanel, Color32, Layout, Pos2, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel
+    Button, CentralPanel, Color32, Layout, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel
 };
 use egui_graphs::{
     Graph, GraphView, LayoutRandom, LayoutStateRandom, SettingsInteraction, SettingsNavigation,
@@ -1348,21 +1348,6 @@ impl SimulationController {
                 });
             });
         CentralPanel::default().show(ctx, |ui| {
-            let coord: [(f64, f64); 10] = [(1.0, 0.0), (0.8090169943749475, 0.5877852522924731), (0.30901699437494745, 0.9510565162951535), 
-    (-0.30901699437494734, 0.9510565162951536), (-0.8090169943749473, 0.5877852522924732), 
-    (-1.0, 1.2246467991473532e-16), (-0.8090169943749476, -0.587785252292473), 
-    (-0.30901699437494756, -0.9510565162951535), (0.30901699437494723, -0.9510565162951536), 
-    (0.8090169943749473, -0.5877852522924734)];
-            let half_width = ui.available_width() / 2.0;
-            let half_height = ui.available_height() / 2.0;
-            let idxs = self.graph.nodes_iter().map(|(idx, _)| idx).collect::<Vec<NodeIndex>>();
-
-            for (idx, (x,y)) in idxs.iter().zip(coord.iter()) {
-                self.graph.node_mut(*idx).unwrap().set_location(
-                    Pos2 { x: half_height + half_width + *x as f32, y: half_height + half_height + *y as f32 }
-                );
-            }
-
             let graph_widget: &mut GraphView<
                 '_,
                 WidgetType,
