@@ -7,7 +7,7 @@ use wg_2024::{network::NodeId, packet::Packet};
 
 #[derive(Clone, Debug)]
 /// Represents a web client widget
-/// 
+///
 /// This struct stores the `NodeId` and the `Sender<WebClientCommand>` of the
 /// represented web client.
 /// Furthermore, it stores the input for the server id and a flag to indicate if
@@ -31,10 +31,8 @@ pub struct WebClientWidget {
 
 impl WebClientWidget {
     /// Creates a new `WebClientWidget` with the given `id` and `command_ch`
-    #[must_use] pub fn new(
-        id: NodeId,
-        command_ch: Sender<WebClientCommand>,
-    ) -> Self {
+    #[must_use]
+    pub fn new(id: NodeId, command_ch: Sender<WebClientCommand>) -> Self {
         Self {
             id,
             command_ch,
@@ -48,22 +46,24 @@ impl WebClientWidget {
     /// Utility function to send a `WebClientCommand::AddSender` command to the web client
     /// Adds a new neighbor with `neighbor_id` to the web client's neighbor list
     /// Furthermore, a clone of the `Sender<Packet>` channel is stored in the web client
-    /// 
+    ///
     /// # Panics
     /// The function panics if the message is not sent
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch
-            .send(WebClientCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
+            .send(WebClientCommand::AddSender(neighbor_id, neighbor_ch))
+            .expect("msg not sent");
     }
 
     /// Utility function to send a `WebClientCommand::RemoveSender` command to the web client
     /// Removes a the neighbor with `neighbor_id` from the web client's neighbor list
-    /// 
+    ///
     /// # Panics
     /// The function panics if the message is not sent
     pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
-            .send(WebClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
+            .send(WebClientCommand::RemoveSender(neighbor_id))
+            .expect("msg not sent");
     }
 
     /// Function to add a list of files to the web client
@@ -81,20 +81,21 @@ impl WebClientWidget {
     }
 
     /// Utility function to get the `NodeId` of the web client
-    #[must_use] pub fn get_id(&self) -> NodeId {
+    #[must_use]
+    pub fn get_id(&self) -> NodeId {
         self.id
     }
 
     /// Function that validates the input for the server id
-    /// 
+    ///
     /// The function checks if the input is empty, if the input can be parsed to a `NodeId`
     /// and if the parsed `NodeId` is a valid server id.
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// let input_id = "1".to_string();
     /// assert_eq!(validate_parse_id(&input_id), Ok(1));
-    /// 
+    ///
     /// let input_id = "a".to_string();
     /// assert_eq!(validate_parse_id(&input_id), Err("Wrong ID format".to_string()));
     /// ```
@@ -119,9 +120,9 @@ impl WebClientWidget {
 }
 
 /// Implementation of the `egui::Widget` trait for the `WebClientWidget`
-/// 
+///
 /// This allows the `WebClientWidget` to be rendered as an egui widget
-/// 
+///
 /// # Example
 /// ```no_run
 /// use egui::Ui;
@@ -155,7 +156,7 @@ impl Widget for WebClientWidget {
                         self.id_input_error.borrow_mut().clear();
                         let cmd = WebClientCommand::AskListOfFiles(id);
                         self.command_ch.send(cmd).expect("msg not sent");
-                    },
+                    }
                     Err(error) => *self.id_input_error.borrow_mut() = error,
                 }
             }
@@ -170,13 +171,16 @@ impl Widget for WebClientWidget {
                 ui.label(format!("Server {server_id}: "));
                 for file in server_files {
                     let file_name = file.split('/').last().unwrap().to_string();
-                    if ui.add(Label::new(file_name).sense(Sense::click())).clicked() {
+                    if ui
+                        .add(Label::new(file_name).sense(Sense::click()))
+                        .clicked()
+                    {
                         let cmd = WebClientCommand::RequestFile(file.to_string(), *server_id);
                         self.command_ch.send(cmd).expect("msg not sent");
                     }
-
                 }
             }
-        }).response
+        })
+        .response
     }
 }

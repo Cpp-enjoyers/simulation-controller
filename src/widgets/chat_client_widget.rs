@@ -5,7 +5,6 @@ use crossbeam_channel::Sender;
 use egui::{Align, Label, Layout, Sense, Widget};
 use wg_2024::{network::NodeId, packet::Packet};
 
-
 #[derive(Debug, Clone)]
 pub struct ChatClientWidget {
     id: NodeId,
@@ -18,8 +17,9 @@ pub struct ChatClientWidget {
 }
 
 impl ChatClientWidget {
-    #[must_use] pub fn new(id: NodeId, command_ch: Sender<ChatClientCommand>) -> Self {
-        Self { 
+    #[must_use]
+    pub fn new(id: NodeId, command_ch: Sender<ChatClientCommand>) -> Self {
+        Self {
             id,
             command_ch,
             servers_types: HashMap::default(),
@@ -33,22 +33,24 @@ impl ChatClientWidget {
     /// Utility function to send a `ChatClientCommand::AddSender` command to the chat client
     /// Adds a new neighbor with `neighbor_id` to the chat client's neighbor list
     /// Furthermore, a clone of the `Sender<Packet>` channel is stored in the chat client
-    /// 
+    ///
     /// # Panics
     /// The function panics if the message is not sent
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch
-            .send(ChatClientCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
+            .send(ChatClientCommand::AddSender(neighbor_id, neighbor_ch))
+            .expect("msg not sent");
     }
-    
+
     /// Utility function to send a `ChatClientCommand::RemoveSender` command to the chat client
     /// Removes a the neighbor with `neighbor_id` from the chat client's neighbor list
-    /// 
+    ///
     /// # Panics
     /// The function panics if the message is not sent
     pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
-            .send(ChatClientCommand::RemoveSender(neighbor_id)).expect("msg not sent");
+            .send(ChatClientCommand::RemoveSender(neighbor_id))
+            .expect("msg not sent");
     }
 
     /// Function to add the server types to the chat client
@@ -69,18 +71,20 @@ impl ChatClientWidget {
     /// Function to update the list of connected clients to a specific chat server
     /// The list of connected clients is associated with the `server_id`
     pub fn update_connected_client(&mut self, server_id: NodeId, connected_clients: Vec<u8>) {
-        self.list_connected_clients.insert(server_id, connected_clients);
+        self.list_connected_clients
+            .insert(server_id, connected_clients);
     }
 
-    #[must_use] pub fn get_id(&self) -> NodeId {
+    #[must_use]
+    pub fn get_id(&self) -> NodeId {
         self.id
     }
 }
 
 /// Implementation of the `egui::Widget` trait for the `ChatClientWidget`
-/// 
+///
 /// This allows the `ChatClientWidget` to be rendered as an egui widget
-/// 
+///
 /// # Example
 /// ```no_run
 /// use egui::Ui;
@@ -102,7 +106,10 @@ impl Widget for ChatClientWidget {
             // Clicking on a server will open a new window with the chat
             ui.label("Chat servers:");
             for id in self.servers_types.keys() {
-                if ui.add(Label::new(format!("Server {id}")).sense(Sense::click())).clicked() {
+                if ui
+                    .add(Label::new(format!("Server {id}")).sense(Sense::click()))
+                    .clicked()
+                {
                     *self.open_chat.borrow_mut() = true;
                 }
 
@@ -116,28 +123,40 @@ impl Widget for ChatClientWidget {
                                 .max_height(ui.available_height() - 45.0) // this is clearly a bad idea but oh
                                 .stick_to_bottom(true)
                                 .show(ui, |ui| {
-                                ui.label("Chat messages:");
-                                for (is_sender, msg) in self.chat_messages.borrow().iter() {
-                                    if *is_sender {
-                                        ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-                                            ui.add(Label::new(format!("Me: {msg}")).wrap());
-                                        });
-                                    } else {
-                                        ui.with_layout(Layout::left_to_right(Align::TOP), |ui|{
-                                            // ui.label(format!("Other: {}", msg));
-                                            ui.add(Label::new(msg).wrap());
-                                        });
+                                    ui.label("Chat messages:");
+                                    for (is_sender, msg) in self.chat_messages.borrow().iter() {
+                                        if *is_sender {
+                                            ui.with_layout(
+                                                Layout::right_to_left(Align::TOP),
+                                                |ui| {
+                                                    ui.add(Label::new(format!("Me: {msg}")).wrap());
+                                                },
+                                            );
+                                        } else {
+                                            ui.with_layout(
+                                                Layout::left_to_right(Align::TOP),
+                                                |ui| {
+                                                    // ui.label(format!("Other: {}", msg));
+                                                    ui.add(Label::new(msg).wrap());
+                                                },
+                                            );
+                                        }
                                     }
-                                }
-                            });
+                                });
                         });
                         ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut *self.chat_input.borrow_mut());
-                                if ui.button("Send").clicked() && !self.chat_input.borrow().is_empty() {
-                                    self.chat_messages.borrow_mut().push((true, self.chat_input.borrow().clone()));
-                                    let cmd = ChatClientCommand::SendMessage(self.chat_input.borrow().clone());
+                                if ui.button("Send").clicked()
+                                    && !self.chat_input.borrow().is_empty()
+                                {
+                                    self.chat_messages
+                                        .borrow_mut()
+                                        .push((true, self.chat_input.borrow().clone()));
+                                    let cmd = ChatClientCommand::SendMessage(
+                                        self.chat_input.borrow().clone(),
+                                    );
                                     self.command_ch.send(cmd).expect("msg not sent");
                                     self.chat_input.borrow_mut().clear();
                                 }
@@ -146,6 +165,7 @@ impl Widget for ChatClientWidget {
                     });
             }
             ui.separator();
-        }).response
+        })
+        .response
     }
 }

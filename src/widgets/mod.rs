@@ -1,14 +1,14 @@
-use crossbeam_channel::Sender;
-use server_widget::ServerWidget;
-use drone_widget::DroneWidget;
-use web_client_widget::WebClientWidget;
 use chat_client_widget::ChatClientWidget;
+use crossbeam_channel::Sender;
+use drone_widget::DroneWidget;
+use server_widget::ServerWidget;
+use web_client_widget::WebClientWidget;
 use wg_2024::{network::NodeId, packet::Packet};
 
-pub mod drone_widget;
-pub mod web_client_widget;
 pub mod chat_client_widget;
+pub mod drone_widget;
 pub mod server_widget;
+pub mod web_client_widget;
 
 #[derive(Clone, Debug)]
 pub enum WidgetType {
@@ -19,7 +19,8 @@ pub enum WidgetType {
 }
 
 impl WidgetType {
-    #[must_use] pub fn get_id_helper(&self) -> NodeId {
+    #[must_use]
+    pub fn get_id_helper(&self) -> NodeId {
         match self {
             WidgetType::Drone(drone_widget) => drone_widget.get_id(),
             WidgetType::WebClient(web_client_widget) => web_client_widget.get_id(),
@@ -40,8 +41,12 @@ impl WidgetType {
     pub fn rm_neighbor_helper(&self, neighbor_id: u8) {
         match self {
             WidgetType::Drone(drone_widget) => drone_widget.remove_neighbor(neighbor_id),
-            WidgetType::WebClient(web_client_widget) => web_client_widget.remove_neighbor(neighbor_id),
-            WidgetType::ChatClient(chat_client_widget) => chat_client_widget.remove_neighbor(neighbor_id),
+            WidgetType::WebClient(web_client_widget) => {
+                web_client_widget.remove_neighbor(neighbor_id);
+            }
+            WidgetType::ChatClient(chat_client_widget) => {
+                chat_client_widget.remove_neighbor(neighbor_id);
+            }
             WidgetType::Server(server_widget) => server_widget.remove_neighbor(neighbor_id),
         }
     }

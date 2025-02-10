@@ -6,7 +6,7 @@ use wg_2024::{controller::DroneCommand, network::NodeId, packet::Packet};
 
 #[derive(Clone, Debug)]
 /// Represents a drone widget
-/// 
+///
 /// This struct stores the `NodeId` and the `Sender<DroneCommand>` of the
 /// represented drone.
 /// Furthermore, it stores the input for the packet drop rate (PDR) and a flag
@@ -24,10 +24,8 @@ pub struct DroneWidget {
 
 impl DroneWidget {
     /// Creates a new `DroneWidget` with the given `id` and `command_ch`
-    #[must_use] pub fn new(
-        id: NodeId,
-        command_ch: Sender<DroneCommand>,
-    ) -> Self {
+    #[must_use]
+    pub fn new(id: NodeId, command_ch: Sender<DroneCommand>) -> Self {
         Self {
             id,
             command_ch,
@@ -39,48 +37,52 @@ impl DroneWidget {
     /// Utility function to send a `DroneCommand::AddSender` command to the drone
     /// Adds a new neighbor with `neighbor_id` to the drone's neighbor list
     /// Furthermore, a clone of the `Sender<Packet>` channel is stored in the drone
-    /// 
+    ///
     /// # Panics
     /// If the message is not sent
     pub fn add_neighbor(&mut self, neighbor_id: u8, neighbor_ch: Sender<Packet>) {
         self.command_ch
-            .send(DroneCommand::AddSender(neighbor_id, neighbor_ch)).expect("msg not sent");
+            .send(DroneCommand::AddSender(neighbor_id, neighbor_ch))
+            .expect("msg not sent");
     }
 
     /// Utility function to send a `DroneCommand::RemoveSender` command to the drone
     /// Removes a the neighbor with `neighbor_id` from the drone's neighbor list
-    /// 
+    ///
     /// # Panics
     /// If the message is not sent
     pub fn remove_neighbor(&self, neighbor_id: u8) {
         self.command_ch
-            .send(DroneCommand::RemoveSender(neighbor_id)).expect("msg not sent");
+            .send(DroneCommand::RemoveSender(neighbor_id))
+            .expect("msg not sent");
     }
 
     /// Utility function to get the `NodeId` of the drone
-    #[must_use] pub fn get_id(&self) -> NodeId {
+    #[must_use]
+    pub fn get_id(&self) -> NodeId {
         self.id
     }
 
     /// Utility function to send a `DroneCommand::Crash` command to the drone
-    /// 
+    ///
     /// # Panics
     /// If the message is not sent
     pub fn send_crash_command(&self) {
         self.command_ch
-            .send(DroneCommand::Crash).expect("msg not sent");
+            .send(DroneCommand::Crash)
+            .expect("msg not sent");
     }
 
     /// Function that validates the input for the PDR
-    /// 
+    ///
     /// The input is considered valid if it is not empty and can be parsed as a float
     /// between 0.0 and 1.0.
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// let pdr = "0.5".to_string();
     /// assert_eq!(validate_parse_pdr(&pdr), Some(0.5));
-    /// 
+    ///
     /// let pdr = "1.5".to_string();
     /// assert_eq!(validate_parse_pdr(&pdr), None);
     /// ```
@@ -104,9 +106,9 @@ impl DroneWidget {
 }
 
 /// Implement the `egui::Widget` trait for `DroneWidget`
-/// 
+///
 /// This allows the `DroneWidget` to be rendered as an egui widget
-/// 
+///
 /// # Example
 /// ```no_run
 /// use egui::Ui;
@@ -126,13 +128,13 @@ impl Widget for DroneWidget {
                         self.command_ch.send(cmd).expect("msg not sent");
                     }
                     Err(error) => *self.pdr_invalid.borrow_mut() = error,
-
                 }
             }
 
             if !self.pdr_invalid.borrow().is_empty() {
                 ui.label(RichText::new(&*self.pdr_invalid.borrow()).color(Color32::RED));
             }
-        }).response
+        })
+        .response
     }
 }

@@ -9,7 +9,8 @@ pub struct EventQueue<T> {
 
 impl<T> EventQueue<T> {
     /// Create a new event queue with the given capacity.
-    #[must_use] pub fn new(capacity: usize) -> Self {
+    #[must_use]
+    pub fn new(capacity: usize) -> Self {
         EventQueue {
             queue: VecDeque::with_capacity(capacity),
             capacity,
@@ -25,12 +26,14 @@ impl<T> EventQueue<T> {
     }
 
     /// Get all events in the queue.
-    #[must_use] pub fn get(&self) -> Vec<&T> {
+    #[must_use]
+    pub fn get(&self) -> Vec<&T> {
         self.queue.iter().collect()
     }
 
     /// Get the number of events in the queue.
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.queue.len()
     }
 }
