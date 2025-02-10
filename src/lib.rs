@@ -1306,6 +1306,8 @@ impl SimulationController {
                                                 node_2_idx,
                                                 node_1,
                                             );
+                                            // Deselect the edge
+                                            self.selected_edge = None;
                                             // Update graph visualization
                                             self.graph.remove_edges_between(node_1_idx, node_2_idx);
                                         }
