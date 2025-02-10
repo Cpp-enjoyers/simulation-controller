@@ -499,7 +499,14 @@ impl SimulationController {
                     client_widget.add_server_type(types);
                 }
             }
-            WebClientEvent::UnsupportedRequest => {}
+            WebClientEvent::UnsupportedRequest => {
+                let client_idx = self.get_node_idx(client_id).unwrap();
+                let client = self.graph.node_mut(client_idx).unwrap().payload_mut();
+
+                if let WidgetType::WebClient(client_widget) = client {
+                    client_widget.add_unsupported_request_error("Unsupported request".to_string());
+                }
+            }
         }
     }
 

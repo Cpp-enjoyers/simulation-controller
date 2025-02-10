@@ -27,6 +27,8 @@ pub struct WebClientWidget {
     id_input_error: Rc<RefCell<String>>,
     /// The list of files contained on the servers
     list_of_files: HashMap<NodeId, Vec<String>>,
+    /// The error message for an unsupported request
+    unsupported_request_error: Rc<RefCell<String>>,
 }
 
 impl WebClientWidget {
@@ -40,6 +42,7 @@ impl WebClientWidget {
             id_input: Rc::new(RefCell::new(String::default())),
             id_input_error: Rc::new(RefCell::new(String::default())),
             list_of_files: HashMap::default(),
+            unsupported_request_error: Rc::new(RefCell::new(String::default())),
         }
     }
 
@@ -78,6 +81,10 @@ impl WebClientWidget {
     /// The response is received from the mimicked client through the `WebClientEvent::ServersTypes` event
     pub fn add_server_type(&mut self, server_types: HashMap<NodeId, ServerType>) {
         self.servers_types = server_types;
+    }
+
+    pub fn add_unsupported_request_error(&mut self, error: String) {
+        *self.unsupported_request_error.borrow_mut() = error;
     }
 
     /// Utility function to get the `NodeId` of the web client
@@ -163,6 +170,13 @@ impl Widget for WebClientWidget {
 
             if !self.id_input_error.borrow().is_empty() {
                 ui.label(RichText::new(&*self.id_input_error.borrow()).color(egui::Color32::RED));
+            }
+
+            if !self.unsupported_request_error.borrow().is_empty() {
+                ui.label(
+                    RichText::new(&*self.unsupported_request_error.borrow())
+                        .color(egui::Color32::RED),
+                );
             }
 
             ui.separator();
